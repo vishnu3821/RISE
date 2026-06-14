@@ -55,6 +55,8 @@ export default function MockTestsStudent({ searchQuery = '' }) {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submissionConfirmText, setSubmissionConfirmText] = useState('');
   const [showTabWarning, setShowTabWarning] = useState(false);
+  const [showFullscreenModal, setShowFullscreenModal] = useState(false);
+  const [showViolationModal, setShowViolationModal] = useState(false);
 
   // Exam Feedback
   const [examFeedback, setExamFeedback] = useState({
@@ -121,16 +123,82 @@ export default function MockTestsStudent({ searchQuery = '' }) {
     return () => clearInterval(interval);
   }, [viewState]);
 
-  useEffect(() => {
-    if (viewState === 'exam' || viewState === 'review') {
-      const handleBlur = () => {
-        setTabSwitches(prev => prev + 1);
-        setShowTabWarning(true);
-      };
-      window.addEventListener('blur', handleBlur);
-      return () => window.removeEventListener('blur', handleBlur);
+  const handleDisqualify = async () => {
+    setShowViolationModal(false);
+    setShowFullscreenModal(false);
+    setShowSubmitModal(false);
+    setShowTabWarning(false);
+    
+    if (currentAttemptId) {
+      await supabase.from('mock_test_attempts').update({
+        status: 'disqualified',
+        tab_switches: 3,
+        submitted_at: new Date().toISOString()
+      }).eq('id', currentAttemptId);
     }
-  }, [viewState]);
+    
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(e => console.log(e));
+    }
+    alert("EXAM TERMINATED: You have been disqualified due to multiple security violations.");
+    setViewState('list');
+    setActiveExam(null);
+  };
+
+  const handleSecurityViolation = () => {
+    setTabSwitches(prev => {
+      const newCount = prev + 1;
+      if (newCount >= 3) {
+        handleDisqualify();
+      } else {
+        setShowViolationModal(true);
+      }
+      return newCount;
+    });
+  };
+
+  useEffect(() => {
+    if (viewState === 'countdown' || viewState === 'exam' || viewState === 'review') {
+      const handleViolationEvent = (e) => {
+        if (e.type === 'fullscreenchange' && !document.fullscreenElement) {
+           setShowFullscreenModal(true);
+        } else if (e.type !== 'fullscreenchange') {
+           handleSecurityViolation();
+        }
+      };
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') handleViolationEvent({ type: 'visibilitychange' });
+      };
+
+      const handleBeforeUnload = (e) => {
+        handleSecurityViolation();
+        e.preventDefault();
+        e.returnValue = '';
+      };
+
+      window.addEventListener('blur', handleViolationEvent);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      document.addEventListener('fullscreenchange', handleViolationEvent);
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('popstate', handleViolationEvent);
+
+      // Force fullscreen automatically on entering countdown
+      if (viewState === 'countdown' && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {
+          setShowFullscreenModal(true);
+        });
+      }
+
+      return () => {
+        window.removeEventListener('blur', handleViolationEvent);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        document.removeEventListener('fullscreenchange', handleViolationEvent);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('popstate', handleViolationEvent);
+      };
+    }
+  }, [viewState, currentAttemptId]);
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600);
@@ -286,12 +354,6 @@ export default function MockTestsStudent({ searchQuery = '' }) {
 
   const handleStartCountdown = async () => {
     try {
-      // Request native browser fullscreen for immersive experience
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.warn('Error attempting to enable fullscreen:', err);
-        });
-      }
 
       const { data, error } = await supabase.from('mock_test_attempts').insert([{
         test_id: activeExam.id,
@@ -717,21 +779,63 @@ Output only the JSON.`;
           )}
         </AnimatePresence>
 
-        {/* Tab Warning Modal */}
+        {/* Fullscreen Required Modal */}
         <AnimatePresence>
-          {showTabWarning && (
-            <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
+          {showFullscreenModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/90 backdrop-blur-md"></div>
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-theme-card border border-red-500/30 p-10 rounded-[32px] shadow-[0_0_100px_rgba(239,68,68,0.2)] relative z-10 max-w-lg w-full text-center">
+                <div className="w-24 h-24 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <MonitorX className="w-12 h-12" />
+                </div>
+                <h3 className="text-3xl font-black text-theme-text mb-4 tracking-tight">Fullscreen Required</h3>
+                <p className="text-theme-text-muted mb-8 leading-relaxed text-lg">
+                  This assessment must be taken in fullscreen mode. Please return to fullscreen to continue your exam.
+                </p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => {
+                       setShowFullscreenModal(false);
+                       handleDisqualify();
+                    }}
+                    className="flex-1 py-4 bg-theme-glass hover:bg-red-500/20 text-red-400 rounded-xl font-bold transition-colors text-sm uppercase tracking-wider"
+                  >
+                    Leave Exam
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().then(() => {
+                          setShowFullscreenModal(false);
+                        }).catch(() => alert("Failed to enter fullscreen. Please try again or use a different browser."));
+                      }
+                    }} 
+                    className="flex-1 py-4 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl font-bold transition-colors shadow-lg text-sm uppercase tracking-wider"
+                  >
+                    Return to Fullscreen
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Security Violation Modal */}
+        <AnimatePresence>
+          {showViolationModal && (
+            <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/80 backdrop-blur-md"></div>
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-theme-card border border-red-500/30 p-8 rounded-3xl shadow-2xl shadow-red-500/20 relative z-10 max-w-md w-full text-center">
                 <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
                   <AlertTriangle className="w-10 h-10" />
                 </div>
-                <h3 className="text-2xl font-black text-theme-text mb-4 tracking-tight">SECURITY WARNING</h3>
+                <h3 className="text-2xl font-black text-theme-text mb-2 tracking-tight">Warning {tabSwitches} of 3</h3>
+                <h4 className="text-red-400 font-bold mb-4">{tabSwitches === 1 ? 'Tab switching or leaving fullscreen has been detected.' : 'Security violations have been detected again.'}</h4>
                 <p className="text-gray-300 mb-8 leading-relaxed">
-                  You have left the exam tab. Tab switching is strictly monitored. Multiple infractions may result in auto-submission or disqualification.
+                  {tabSwitches === 1 ? 'Repeated violations may terminate the exam.' : 'One more violation will automatically disqualify you.'}
                 </p>
                 <button 
-                  onClick={() => setShowTabWarning(false)} 
+                  onClick={() => setShowViolationModal(false)} 
                   className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-500/20 text-lg uppercase tracking-wider"
                 >
                   I Understand
@@ -758,8 +862,14 @@ Output only the JSON.`;
                   </h2>
                   <p className="text-theme-text-muted font-mono">{activeExam?.title}</p>
                 </div>
-                <div className="px-5 py-3 bg-brand-primary/20 border border-brand-primary/30 rounded-2xl text-brand-primary font-mono font-bold text-2xl flex items-center gap-3">
-                  <Timer className="w-6 h-6" /> T-{countdown}s
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-500 text-xs font-bold uppercase tracking-wider">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    Security Monitoring Active
+                  </div>
+                  <div className="px-5 py-3 bg-brand-primary/20 border border-brand-primary/30 rounded-2xl text-brand-primary font-mono font-bold text-2xl flex items-center gap-3">
+                    <Timer className="w-6 h-6" /> T-{countdown}s
+                  </div>
                 </div>
               </div>
 
