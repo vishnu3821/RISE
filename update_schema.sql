@@ -1,0 +1,1 @@
+ALTER TABLE public.mock_tests ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 120;

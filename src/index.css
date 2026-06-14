@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+:root {
+  --theme-bg: #0b1326;
+  --theme-card: #121c33;
+  --theme-card-alt: #0a0f1c;
+  --theme-text: #ffffff;
+  --theme-text-muted: #9ca3af;
+  --theme-border: rgba(255, 255, 255, 0.1);
+  --theme-glass: rgba(255, 255, 255, 0.05);
+}
+
+.light-theme {
+  --theme-bg: #f8fafc;
+  --theme-card: #ffffff;
+  --theme-card-alt: #f1f5f9;
+  --theme-text: #0f172a;
+  --theme-text-muted: #475569;
+  --theme-border: rgba(0, 0, 0, 0.1);
+  --theme-glass: rgba(255, 255, 255, 0.7);
+}
+
+@theme {
+  --color-brand-bg: var(--theme-bg);
+  --color-brand-primary: #4f46e5;
+  --color-brand-secondary: #9333ea;
+  --color-brand-cyan: #22d3ee;
+  
+  --color-theme-card: var(--theme-card);
+  --color-theme-card-alt: var(--theme-card-alt);
+  --color-theme-text: var(--theme-text);
+  --color-theme-text-muted: var(--theme-text-muted);
+  --color-theme-border: var(--theme-border);
+  --color-theme-glass: var(--theme-glass);
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-theme-text font-sans antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    background-color: var(--theme-glass);
+    border: 1px solid var(--theme-border);
+    backdrop-filter: blur(24px);
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+  }
+  
+  .glass-card:hover {
+    background-color: var(--theme-card);
+    border-color: rgba(192, 193, 255, 0.4);
+    transform: translateY(-5px) scale(1.01);
+    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(192, 193, 255, 0.1);
+  }
+
+  .bg-mesh-animated {
+    background: radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(147, 51, 234, 0.15) 0px, transparent 50%);
+    animation: mesh-move 15s ease infinite alternate;
+  }
+
+  @keyframes mesh-move {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+  }
+
+  .glass-nav {
+    @apply transition-all duration-300 bg-transparent;
+  }
+
+  .glass-nav.scrolled {
+    background-color: var(--theme-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--theme-border);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-linear-to-r from-indigo-400 via-purple-400 to-cyan-400;
+  }
+  
+  /* Page Turn Overlay */
+  .page-turn-container {
+    perspective: 2000px;
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99999;
+  }
+}
