@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-const WARNING_MS = 14 * 60 * 1000; // 14 minutes
+const WARNING_MS = TIMEOUT_MS - (15 * 1000); // 15 seconds warning
 
 const SessionManager = () => {
   const { user, logout } = useAuth();
