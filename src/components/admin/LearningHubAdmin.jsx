@@ -248,6 +248,20 @@ export default function LearningHubAdmin() {
     }
   };
 
+  const handleDeleteAllQuestionsInTopic = async () => {
+    if (!questionFilters.topic) return;
+    if (!confirm('Are you sure you want to delete ALL questions in this specific topic? This action cannot be undone.')) return;
+    try {
+      const { error } = await supabase.from('learning_hub_questions').delete().eq('topic_id', questionFilters.topic);
+      if (error) throw error;
+      setQuestions(questions.filter(q => q.topic_id !== questionFilters.topic));
+      alert('Successfully deleted all questions in the selected topic.');
+    } catch (err) {
+      console.error('Error bulk deleting questions:', err);
+      alert('Failed to delete questions.');
+    }
+  };
+
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim() !== '');
     const result = [];
@@ -488,6 +502,11 @@ export default function LearningHubAdmin() {
               <FileQuestion className="w-5 h-5 text-brand-cyan" /> Questions
             </h3>
             <div className="flex items-center gap-3">
+              {questionFilters.topic && (
+                <button onClick={handleDeleteAllQuestionsInTopic} className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold rounded-lg transition-colors">
+                  <Trash2 className="w-4 h-4" /> Delete All in Topic
+                </button>
+              )}
               <button onClick={() => setIsBulkUploadModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-theme-card border border-theme-border hover:bg-theme-glass text-theme-text font-bold rounded-lg transition-colors">
                 <Plus className="w-4 h-4" /> Bulk Upload
               </button>
