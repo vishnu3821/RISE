@@ -782,7 +782,7 @@ Output only the JSON.`;
         {/* Fullscreen Required Modal */}
         <AnimatePresence>
           {showFullscreenModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/90 backdrop-blur-md"></div>
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-theme-card border border-red-500/30 p-10 rounded-[32px] shadow-[0_0_100px_rgba(239,68,68,0.2)] relative z-10 max-w-lg w-full text-center">
                 <div className="w-24 h-24 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -823,7 +823,7 @@ Output only the JSON.`;
         {/* Security Violation Modal */}
         <AnimatePresence>
           {showViolationModal && (
-            <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-90 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/80 backdrop-blur-md"></div>
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-theme-card border border-red-500/30 p-8 rounded-3xl shadow-2xl shadow-red-500/20 relative z-10 max-w-md w-full text-center">
                 <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
