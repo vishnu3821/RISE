@@ -1218,7 +1218,7 @@ Output only the JSON.`;
                           </button>
                         ) : (
                           <button 
-                            onClick={() => handleSectionSubmit(false)}
+                            onClick={() => setShowSubmitModal(true)}
                             className="px-10 py-4 bg-emerald-500 hover:bg-emerald-600 text-theme-text rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/20"
                           >
                             Submit {currentModule?.module_name} Section
