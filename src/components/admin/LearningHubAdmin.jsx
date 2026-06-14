@@ -34,6 +34,7 @@ export default function LearningHubAdmin() {
 
   // Filters
   const [questionFilters, setQuestionFilters] = useState({ category: '', topic: '', search: '', showDuplicates: false });
+  const [selectedQuestions, setSelectedQuestions] = useState([]);
   
   const [bulkUploadForm, setBulkUploadForm] = useState({ category_id: '', topic_id: '' });
   const [csvFile, setCsvFile] = useState(null);
@@ -255,10 +256,42 @@ export default function LearningHubAdmin() {
       const { error } = await supabase.from('learning_hub_questions').delete().eq('topic_id', questionFilters.topic);
       if (error) throw error;
       setQuestions(questions.filter(q => q.topic_id !== questionFilters.topic));
+      setSelectedQuestions([]);
       alert('Successfully deleted all questions in the selected topic.');
     } catch (err) {
       console.error('Error bulk deleting questions:', err);
       alert('Failed to delete questions.');
+    }
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedQuestions(filteredQuestions.map(q => q.id));
+    } else {
+      setSelectedQuestions([]);
+    }
+  };
+
+  const handleSelectQuestion = (e, id) => {
+    if (e.target.checked) {
+      setSelectedQuestions([...selectedQuestions, id]);
+    } else {
+      setSelectedQuestions(selectedQuestions.filter(qId => qId !== id));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedQuestions.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedQuestions.length} selected questions? This action cannot be undone.`)) return;
+    try {
+      const { error } = await supabase.from('learning_hub_questions').delete().in('id', selectedQuestions);
+      if (error) throw error;
+      setQuestions(questions.filter(q => !selectedQuestions.includes(q.id)));
+      setSelectedQuestions([]);
+      alert(`Successfully deleted ${selectedQuestions.length} questions.`);
+    } catch (err) {
+      console.error('Error deleting selected questions:', err);
+      alert('Failed to delete selected questions.');
     }
   };
 
@@ -502,6 +535,11 @@ export default function LearningHubAdmin() {
               <FileQuestion className="w-5 h-5 text-brand-cyan" /> Questions
             </h3>
             <div className="flex items-center gap-3">
+              {selectedQuestions.length > 0 && (
+                <button onClick={handleDeleteSelected} className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold rounded-lg transition-colors">
+                  <Trash2 className="w-4 h-4" /> Delete Selected ({selectedQuestions.length})
+                </button>
+              )}
               {questionFilters.topic && (
                 <button onClick={handleDeleteAllQuestionsInTopic} className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold rounded-lg transition-colors">
                   <Trash2 className="w-4 h-4" /> Delete All in Topic
@@ -534,13 +572,13 @@ export default function LearningHubAdmin() {
                 {questionFilters.showDuplicates ? 'Showing Duplicates' : 'Find Duplicates'}
               </button>
               <select 
-                value={questionFilters.category} onChange={e => setQuestionFilters({...questionFilters, category: e.target.value, topic: ''})}
+                value={questionFilters.category} onChange={e => { setQuestionFilters({...questionFilters, category: e.target.value, topic: ''}); setSelectedQuestions([]); }}
                 className="bg-theme-card border border-theme-border rounded-lg py-2 px-4 text-sm text-theme-text focus:ring-1 focus:ring-brand-primary outline-none"
               >
                 <option value="">All Categories</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <select value={questionFilters.topic} onChange={e => setQuestionFilters({...questionFilters, topic: e.target.value})} disabled={!questionFilters.category} className="bg-theme-card border border-theme-border rounded-lg py-2 px-3 text-sm text-theme-text focus:ring-1 focus:ring-brand-primary outline-none disabled:opacity-50">
+              <select value={questionFilters.topic} onChange={e => { setQuestionFilters({...questionFilters, topic: e.target.value}); setSelectedQuestions([]); }} disabled={!questionFilters.category} className="bg-theme-card border border-theme-border rounded-lg py-2 px-3 text-sm text-theme-text focus:ring-1 focus:ring-brand-primary outline-none disabled:opacity-50">
                   <option value="">All Topics</option>
                   {[...topics].reverse().filter(t => t.category_id === questionFilters.category).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
@@ -551,6 +589,14 @@ export default function LearningHubAdmin() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-brand-bg/50 border-b border-theme-border text-xs font-bold text-theme-text-muted uppercase tracking-wider">
+                    <th className="px-6 py-4 w-12">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-theme-border bg-theme-glass text-brand-primary focus:ring-brand-primary"
+                        checked={filteredQuestions.length > 0 && selectedQuestions.length === filteredQuestions.length}
+                        onChange={handleSelectAll}
+                      />
+                    </th>
                     <th className="px-6 py-4">Question</th>
                     <th className="px-6 py-4">Category</th>
                     <th className="px-6 py-4">Topic</th>
@@ -561,6 +607,14 @@ export default function LearningHubAdmin() {
                 <tbody className="divide-y divide-white/5">
                   {filteredQuestions.length > 0 ? filteredQuestions.map(q => (
                     <tr key={q.id} className="hover:bg-theme-glass transition-colors">
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-theme-border bg-theme-glass text-brand-primary focus:ring-brand-primary cursor-pointer w-4 h-4"
+                          checked={selectedQuestions.includes(q.id)}
+                          onChange={(e) => handleSelectQuestion(e, q.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 font-semibold text-theme-text max-w-xs truncate" title={q.question_text}>{q.question_text}</td>
                       <td className="px-6 py-4 text-sm text-theme-text-muted">{q.learning_hub_topics?.learning_hub_categories?.name}</td>
                       <td className="px-6 py-4 text-sm text-gray-300">{q.learning_hub_topics?.name}</td>
@@ -580,7 +634,7 @@ export default function LearningHubAdmin() {
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="5" className="px-6 py-8 text-center text-gray-500 text-sm">No questions found.</td></tr>
+                    <tr><td colSpan="6" className="px-6 py-8 text-center text-gray-500 text-sm">No questions found.</td></tr>
                   )}
                 </tbody>
               </table>
