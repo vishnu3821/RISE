@@ -974,7 +974,7 @@ export default function MockTestsAdmin() {
       )}
 
       {/* WIZARD VIEWS */}
-      {['step1', 'step2', 'step3', 'review'].includes(viewState) && (
+      {['step1', 'step2', 'step3', 'instructions_setup', 'review'].includes(viewState) && (
         <div className="max-w-4xl mx-auto">
           {/* Progress Bar */}
           <div className="flex items-center justify-between mb-8 relative">
@@ -983,10 +983,11 @@ export default function MockTestsAdmin() {
               { id: 'step1', label: 'Basic Info' },
               { id: 'step2', label: 'Modules' },
               { id: 'step3', label: 'Questions' },
+              { id: 'instructions_setup', label: 'Instructions' },
               { id: 'review', label: 'Review' }
             ].map((step, idx) => {
               const isActive = viewState === step.id;
-              const isPast = ['step1', 'step2', 'step3', 'review'].indexOf(viewState) > idx;
+              const isPast = ['step1', 'step2', 'step3', 'instructions_setup', 'review'].indexOf(viewState) > idx;
               return (
                 <div key={step.id} className="flex flex-col items-center gap-2">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 transition-colors ${isActive ? 'bg-brand-primary border-brand-primary text-theme-text' : isPast ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-theme-card border-theme-border text-gray-500'}`}>
