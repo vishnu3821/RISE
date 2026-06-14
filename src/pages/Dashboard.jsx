@@ -89,10 +89,11 @@ export default function Dashboard() {
       const startOfWeek = new Date();
       startOfWeek.setDate(startOfWeek.getDate() - 7);
 
-      let { data: goalsData } = await supabase.from('student_goals').select('*').eq('student_id', user.id).maybeSingle();
+      let { data: goalsArray } = await supabase.from('student_goals').select('*').eq('student_id', user.id).order('created_at', { ascending: false }).limit(1);
+      let goalsData = goalsArray?.[0];
       if (!goalsData) {
-        const { data: newGoals } = await supabase.from('student_goals').insert([{ student_id: user.id }]).select().maybeSingle();
-        goalsData = newGoals || { goal_questions_per_day: 20, goal_coding_per_day: 2, goal_mock_per_week: 1, current_streak: 0, placement_readiness: 0 };
+        const { data: newGoals } = await supabase.from('student_goals').insert([{ student_id: user.id }]).select().limit(1);
+        goalsData = newGoals?.[0] || { goal_questions_per_day: 20, goal_coding_per_day: 2, goal_mock_per_week: 1, current_streak: 0, placement_readiness: 0 };
       }
       setGoalForm({ q: goalsData.goal_questions_per_day, c: goalsData.goal_coding_per_day, m: goalsData.goal_mock_per_week });
 
@@ -113,9 +114,13 @@ export default function Dashboard() {
 
       // Daily stats
       const [
-        { data: lhTodayData }
+        { data: lhTodayData },
+        { data: mockTodayData },
+        { data: interviewTodayData }
       ] = await Promise.all([
-        supabase.from('learning_hub_progress').select('id, question_id').eq('student_id', user.id).gte('created_at', startOfDay.toISOString())
+        supabase.from('learning_hub_progress').select('id, question_id').eq('student_id', user.id).gte('created_at', startOfDay.toISOString()),
+        supabase.from('mock_test_attempts').select('id').eq('student_id', user.id).gte('created_at', startOfDay.toISOString()),
+        supabase.from('ai_interview_attempts').select('id').eq('student_id', user.id).gte('created_at', startOfDay.toISOString())
       ]);
 
       const lhTodayCoding = (lhTodayData || []).filter(row => codingQuestionIds.has(row.question_id)).length;
@@ -156,33 +161,44 @@ export default function Dashboard() {
       let readinessScore = Math.min(100, Math.round(((mockCount || 0) * 10) + ((pyqCount || 0) * 2) + ((learnCount || 0) * 1) + ((interviewCount || 0) * 5)));
       
       // Update streak and readiness
-      const today = new Date().toISOString().split('T')[0];
-      const hasActivityToday = (qToday || cToday) > 0;
+      const getLocalYMD = (date) => date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+      
+      const today = getLocalYMD(new Date());
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterdayStr = getLocalYMD(yesterdayDate);
+
+      const hasActivityToday = (lhTodayData?.length > 0) || (mockTodayData?.length > 0) || (interviewTodayData?.length > 0);
+      
       let newStreak = goalsData.current_streak || 0;
       let lastDate = goalsData.last_activity_date;
-      
+      let streakUpdated = false;
+
+      // Reset streak to 0 if they missed both today and yesterday
+      if (lastDate && lastDate !== today && lastDate !== yesterdayStr) {
+        newStreak = 0;
+        streakUpdated = true;
+      }
+
       if (hasActivityToday && lastDate !== today) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-        
         if (lastDate === yesterdayStr) {
-          newStreak += 1;
+          newStreak = (goalsData.current_streak || 0) + 1;
         } else {
           newStreak = 1;
         }
         lastDate = today;
+        streakUpdated = true;
       }
 
-      if (hasActivityToday || readinessScore !== goalsData.placement_readiness) {
+      if (streakUpdated || readinessScore !== goalsData.placement_readiness) {
         await supabase.from('student_goals').update({
           current_streak: newStreak,
           last_activity_date: lastDate,
           placement_readiness: readinessScore
-        }).eq('student_id', user.id);
-        setUserGoals({...goalsData, current_streak: newStreak, placement_readiness: readinessScore});
+        }).eq('id', goalsData.id);
+        setUserGoals({...goalsData, current_streak: newStreak, placement_readiness: readinessScore, last_activity_date: lastDate});
       } else {
-        setUserGoals({...goalsData, placement_readiness: readinessScore});
+        setUserGoals({...goalsData, placement_readiness: readinessScore, current_streak: newStreak});
       }
 
       // Build Recent Activity
