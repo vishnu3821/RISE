@@ -139,7 +139,7 @@ export default function BasicCalculator({ onClose }) {
       initial={{ opacity: 0, scale: 0.9, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9, y: 20 }}
-      className={`fixed z-[9999] bg-theme-bg border border-theme-border shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col ${isMinimized ? 'w-[320px] h-auto' : 'w-[320px] h-auto pb-4'}`}
+      className={`fixed z-9999 bg-theme-bg border border-theme-border shadow-[0_10px_40px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden flex flex-col ${isMinimized ? 'w-[320px] h-auto' : 'w-[320px] h-auto pb-4'}`}
       style={{ left: 'calc(100vw - 360px)', top: '100px' }} // Initial position
     >
       {/* Header / Drag Handle */}
@@ -210,7 +210,7 @@ export default function BasicCalculator({ onClose }) {
               <button onClick={() => inputDigit(1)} className={btnClass}>1</button>
               <button onClick={() => inputDigit(2)} className={btnClass}>2</button>
               <button onClick={() => inputDigit(3)} className={btnClass}>3</button>
-              <button onClick={handleEqual} className={`row-span-2 ${getOpClass('=')} !bg-brand-secondary !text-white !border-brand-secondary`}>=</button>
+              <button onClick={handleEqual} className={`row-span-2 ${getOpClass('=')} bg-brand-secondary! text-white! border-brand-secondary!`}>=</button>
 
               <button onClick={() => inputDigit(0)} className={`col-span-2 ${btnClass}`}>0</button>
               <button onClick={inputDot} className={btnClass}>.</button>

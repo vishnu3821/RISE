@@ -342,7 +342,7 @@ export default function Admin() {
                   value={targetEmail}
                   onChange={e => setTargetEmail(e.target.value)}
                   placeholder="Must be your Resend verified email!"
-                  className="w-full bg-brand-bg/50 border border-theme-border rounded-xl py-2.5 px-4 text-sm text-theme-text focus:outline-none focus:ring-1 focus:ring-brand-secondary transition-all mb-2 border-brand-secondary/50 bg-brand-secondary/5"
+                  className="w-full bg-brand-bg/50 border border-theme-border rounded-xl py-2.5 px-4 text-sm text-theme-text focus:outline-none focus:ring-1 focus:ring-brand-secondary transition-all mb-2"
                 />
                 <p className="text-[10px] text-theme-text-muted">Currently using Resend Sandbox. You can only email the verified test address.</p>
               </div>

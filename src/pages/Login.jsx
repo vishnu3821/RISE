@@ -137,9 +137,9 @@ export default function Login() {
           </button>
           
           <div className="relative flex items-center py-2">
-            <div className="flex-grow border-t border-theme-border"></div>
-            <span className="flex-shrink-0 mx-4 text-xs text-theme-text-muted uppercase tracking-widest font-bold">Or continue with</span>
-            <div className="flex-grow border-t border-theme-border"></div>
+            <div className="grow border-t border-theme-border"></div>
+            <span className="shrink-0 mx-4 text-xs text-theme-text-muted uppercase tracking-widest font-bold">Or continue with</span>
+            <div className="grow border-t border-theme-border"></div>
           </div>
 
           <button

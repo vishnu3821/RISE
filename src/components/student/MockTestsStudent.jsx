@@ -685,7 +685,7 @@ Output only the JSON.`;
         {viewState === 'exam' && activeExam?.allow_calculator && !isCodingSection && (
           <button 
             onClick={() => setIsCalculatorOpen(true)}
-            className="fixed bottom-8 right-8 w-14 h-14 bg-brand-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-brand-secondary transition-colors z-[99] group"
+            className="fixed bottom-8 right-8 w-14 h-14 bg-brand-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-brand-secondary transition-colors z-99 group"
           >
             <Calculator className="w-6 h-6" />
             <div className="absolute right-16 bg-theme-card border border-theme-border text-xs font-bold px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
