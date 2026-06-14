@@ -72,7 +72,7 @@ export default function AiInterviewsStudent() {
       setIsProcessingVoice(true);
       
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const result = await model.generateContent([
         { text: "You are a highly accurate audio transcription tool. Transcribe the following speech exactly as spoken. Do not add any conversational filler, formatting, or commentary. Only output the spoken words." },
@@ -133,7 +133,7 @@ export default function AiInterviewsStudent() {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) throw new Error("Gemini API key is not configured in .env file.");
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }); // 1.5-flash supports PDF processing
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // 1.5-flash supports PDF processing
       
       const prompt = "You are an expert technical interviewer. Analyze this candidate's resume and generate 3 highly targeted and challenging interview questions based on their specific skills, projects, and experience. Also provide 2 or 3 expected key points or concepts the candidate should hit in their answer. Return ONLY a valid JSON array of objects, with each object having exactly these two keys: 'question_text' (string) and 'expected_points' (array of strings). Do not wrap the JSON in markdown code blocks.";
       
@@ -299,7 +299,7 @@ export default function AiInterviewsStudent() {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) throw new Error("Gemini API key is not configured in .env file.");
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       const evaluationPrompt = `You are an expert technical and behavioral interview evaluator.
 I will provide you with a list of interview questions and the candidate's exact transcribed answers.
@@ -366,7 +366,7 @@ Do NOT wrap the response in markdown code blocks. Return only raw JSON.`;
 
     } catch (err) {
       console.error(err);
-      alert('Error finalizing interview');
+      alert('Error finalizing interview: ' + (err.message || 'Unknown error'));
       setView('modules');
     }
   };
