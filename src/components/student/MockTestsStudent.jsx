@@ -53,6 +53,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
 
   // Modals
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submissionConfirmText, setSubmissionConfirmText] = useState('');
   const [showTabWarning, setShowTabWarning] = useState(false);
 
   // Exam Feedback
@@ -376,32 +377,20 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       
       await supabase.from('mock_test_attempts').update({ module_state: newState }).eq('id', currentAttemptId);
       
-      setViewState('section_summary');
+      setShowSubmitModal(false);
+      setSubmissionConfirmText('');
+
+      if (currentModuleIndex < activeModules.length - 1) {
+        setCurrentModuleIndex(prev => prev + 1);
+        setCurrentQuestionIndex(0);
+        const nextMod = activeModules[currentModuleIndex + 1];
+        setSectionTimeRemaining((nextMod?.duration_minutes || 30) * 60);
+        setViewState('exam');
+      } else {
+        handleFinalSubmit();
+      }
     } catch (err) {
       console.error('Error submitting section', err);
-    }
-  };
-
-  const handleNextSection = () => {
-    if (currentModuleIndex < activeModules.length - 1) {
-      setViewState('transition');
-      let tCount = 10;
-      setTransitionCountdown(tCount);
-      const timer = setInterval(() => {
-        tCount -= 1;
-        if (tCount > 0) {
-          setTransitionCountdown(tCount);
-        } else {
-          clearInterval(timer);
-          setCurrentModuleIndex(prev => prev + 1);
-          setCurrentQuestionIndex(0);
-          const nextMod = activeModules[currentModuleIndex + 1];
-          setSectionTimeRemaining((nextMod?.duration_minutes || 30) * 60);
-          setViewState('exam');
-        }
-      }, 1000);
-    } else {
-      handleFinalSubmit();
     }
   };
 
@@ -624,7 +613,7 @@ Output only the JSON.`;
     }
   };
 
-  const isFullScreen = ['countdown', 'exam', 'review', 'results', 'section_summary', 'transition', 'exam_feedback'].includes(viewState);
+  const isFullScreen = ['countdown', 'exam', 'review', 'results', 'exam_feedback'].includes(viewState);
 
   // FULL SCREEN VIEWS
   if (isFullScreen) {
@@ -636,46 +625,74 @@ Output only the JSON.`;
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSubmitModal(false)}></div>
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-theme-card border border-theme-border p-8 rounded-3xl shadow-2xl relative z-10 max-w-md w-full">
-                <h3 className="text-2xl font-bold text-theme-text mb-4">Submit Assessment?</h3>
-                
-                <div className="bg-theme-card-alt/50 border border-theme-border rounded-xl p-5 mb-6 space-y-4">
-                  {/* Global Stats */}
-                  <div className="flex justify-between items-center pb-4 border-b border-theme-border">
-                    <div className="flex flex-col">
-                      <span className="text-theme-text-muted text-xs font-bold uppercase tracking-wider mb-1">Total Answered</span>
-                      <span className="text-emerald-400 font-black text-xl">{Object.keys(answers).length} <span className="text-gray-600 text-sm">/ {activeQuestions.length}</span></span>
-                    </div>
-                    <div className="flex flex-col text-right">
-                      <span className="text-theme-text-muted text-xs font-bold uppercase tracking-wider mb-1">For Review</span>
-                      <span className="text-brand-secondary font-black text-xl">{markedForReview.size}</span>
-                    </div>
-                  </div>
-
-                  {/* Module Breakdown */}
-                  <div className="space-y-3 pt-2">
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Module Breakdown</div>
-                    {Array.from(new Set(activeQuestions.map(q => q.module_name))).map(mod => {
-                      const modQs = activeQuestions.filter(q => q.module_name === mod);
-                      const modAnswered = modQs.filter(q => answers[q.id]).length;
-                      return (
-                        <div key={mod} className="flex justify-between items-center text-sm bg-theme-glass px-3 py-2 rounded-lg">
-                          <span className="text-gray-300 font-bold">{mod}</span>
-                          <div className="flex items-center gap-2 font-mono">
-                            <span className={modAnswered === modQs.length ? "text-emerald-400 font-bold" : "text-emerald-400/70"}>{modAnswered}</span>
-                            <span className="text-gray-600">/</span>
-                            <span className="text-theme-text-muted">{modQs.length}</span>
+                {(() => {
+                  const currentModule = activeModules[currentModuleIndex];
+                  const isFinal = currentModuleIndex === activeModules.length - 1;
+                  const moduleName = currentModule?.module_name || '';
+                  const isValid = submissionConfirmText === moduleName;
+                  
+                  return (
+                    <>
+                      <div className="flex items-center gap-3 text-red-400 mb-4">
+                        <AlertTriangle className="w-8 h-8" />
+                        <h3 className="text-2xl font-black text-theme-text">{isFinal ? 'Confirm Final Exam Submission' : 'Confirm Module Submission'}</h3>
+                      </div>
+                      
+                      <div className="bg-theme-card-alt/50 border border-theme-border rounded-xl p-5 mb-6 space-y-4">
+                        <p className="text-theme-text-muted text-sm leading-relaxed">
+                          {isFinal 
+                            ? "You are about to submit the entire exam. After submission you cannot make any changes. All unanswered questions will be marked as unattempted."
+                            : "You are about to submit the current module. Once submitted, you cannot return to this module and all unanswered questions will be marked as unattempted."
+                          }
+                        </p>
+                        
+                        <div className="pt-2">
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">To continue, type the exact name of the current module:</label>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-theme-text text-sm">Current Module</span>
+                            <span className="text-brand-primary font-bold text-lg select-none">{moduleName}</span>
+                          </div>
+                          
+                          <input 
+                            type="text" 
+                            placeholder={`Type "${moduleName}" to continue`}
+                            value={submissionConfirmText}
+                            onChange={(e) => setSubmissionConfirmText(e.target.value)}
+                            onPaste={(e) => e.preventDefault()}
+                            className="w-full bg-theme-bg border border-theme-border rounded-xl py-3 px-4 text-theme-text focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all font-mono"
+                          />
+                          
+                          <div className="mt-2 text-xs font-bold flex items-center gap-1">
+                            {submissionConfirmText === '' ? null : isValid ? (
+                              <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Correct module name</span>
+                            ) : (
+                              <span className="text-red-400 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" /> Module name does not match</span>
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                      </div>
 
-                <p className="text-theme-text-muted mb-8 text-sm leading-relaxed">Once you submit, you cannot change your answers. Are you sure you want to finish the exam?</p>
-                <div className="flex gap-4">
-                  <button onClick={() => setShowSubmitModal(false)} className="flex-1 py-3 bg-theme-glass hover:bg-theme-border text-theme-text rounded-xl font-bold transition-colors">Cancel</button>
-                  <button onClick={handleFinalSubmit} className="flex-1 py-3 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl font-bold transition-colors shadow-lg shadow-brand-primary/20">Submit Final</button>
-                </div>
+                      <div className="flex gap-4 mt-8">
+                        <button onClick={() => { setShowSubmitModal(false); setSubmissionConfirmText(''); }} className="flex-1 py-3.5 bg-theme-glass hover:bg-theme-border border border-theme-border text-theme-text rounded-xl font-bold transition-colors">Cancel</button>
+                        <button 
+                          onClick={() => {
+                            if (isValid) {
+                              if (isFinal) {
+                                handleFinalSubmit();
+                              } else {
+                                handleSectionSubmit(false);
+                              }
+                            }
+                          }} 
+                          disabled={!isValid}
+                          className="flex-1 py-3.5 bg-brand-primary hover:bg-brand-secondary disabled:opacity-50 disabled:hover:bg-brand-primary disabled:cursor-not-allowed text-white rounded-xl font-bold transition-colors shadow-lg shadow-brand-primary/20"
+                        >
+                          {isFinal ? 'Finish Exam' : 'Submit Module'}
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
               </motion.div>
             </div>
           )}
@@ -724,7 +741,7 @@ Output only the JSON.`;
           )}
         </AnimatePresence>
 
-        {/* 1. COUNTDOWN VIEW */}
+        {/* 1. SYSTEM INITIALIZATION VIEW */}
         {viewState === 'countdown' && (
           <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden p-6">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
@@ -732,40 +749,78 @@ Output only the JSON.`;
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="glass-card w-full max-w-2xl bg-theme-card/80 border border-theme-border rounded-3xl p-10 relative z-10 shadow-2xl backdrop-blur-xl"
+              className="glass-card w-full max-w-4xl bg-theme-card/80 border border-theme-border rounded-3xl p-10 relative z-10 shadow-2xl backdrop-blur-xl"
             >
               <div className="flex justify-between items-center mb-8 pb-6 border-b border-theme-border">
-                <h2 className="text-2xl font-black text-theme-text tracking-tight flex items-center gap-3">
-                  <MonitorX className="w-6 h-6 text-brand-primary" /> System Initialization
-                </h2>
-                <div className="px-4 py-2 bg-brand-primary/20 border border-brand-primary/30 rounded-xl text-brand-primary font-mono font-bold text-xl flex items-center gap-2">
-                  <Timer className="w-5 h-5" /> T-{countdown}s
+                <div>
+                  <h2 className="text-3xl font-black text-theme-text tracking-tight flex items-center gap-3 mb-2">
+                    <MonitorX className="w-8 h-8 text-brand-primary" /> System Initialization
+                  </h2>
+                  <p className="text-theme-text-muted font-mono">{activeExam?.title}</p>
+                </div>
+                <div className="px-5 py-3 bg-brand-primary/20 border border-brand-primary/30 rounded-2xl text-brand-primary font-mono font-bold text-2xl flex items-center gap-3">
+                  <Timer className="w-6 h-6" /> T-{countdown}s
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <div className="bg-theme-card-alt/50 border border-theme-border p-6 rounded-2xl">
-                  <div className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-2">Modules Included</div>
-                  <div className="text-theme-text font-mono text-3xl font-black">{(examModulesMap[activeExam?.id] || []).length}</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                {/* Overall Stats */}
+                <div className="col-span-2 md:col-span-4 grid grid-cols-3 gap-6 bg-theme-bg/50 p-6 rounded-2xl border border-theme-border">
+                  <div>
+                    <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Questions</div>
+                    <div className="text-theme-text font-mono text-2xl font-black">{activeQuestions.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Marks</div>
+                    <div className="text-theme-text font-mono text-2xl font-black">{activeQuestions.reduce((sum, q) => sum + (q.marks || 1), 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Duration</div>
+                    <div className="text-theme-text font-mono text-2xl font-black">{(examModulesMap[activeExam?.id] || []).reduce((sum, m) => sum + (m.duration_minutes || 0), 0)} Min</div>
+                  </div>
                 </div>
-                <div className="bg-theme-card-alt/50 border border-theme-border p-6 rounded-2xl">
-                  <div className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-2">Total Questions</div>
-                  <div className="text-theme-text font-mono text-3xl font-black">{activeQuestions.length}</div>
-                </div>
+
+                {/* Modules Summary */}
+                <div className="col-span-2 md:col-span-4 text-xs font-bold text-gray-500 uppercase tracking-widest mt-2 mb-[-10px]">Module Summary</div>
+                {(examModulesMap[activeExam?.id] || []).map((mod, idx) => {
+                   const modQs = activeQuestions.filter(q => q.module_name === mod.module_name);
+                   const marks = modQs.reduce((sum, q) => sum + (q.marks || 1), 0);
+                   return (
+                     <div key={idx} className="bg-theme-card-alt/50 border border-theme-border p-5 rounded-2xl flex flex-col justify-between">
+                       <h4 className="text-brand-secondary font-bold text-lg mb-4">{mod.module_name}</h4>
+                       <div className="space-y-2">
+                         <div className="flex justify-between text-sm">
+                           <span className="text-theme-text-muted">Questions</span>
+                           <span className="text-theme-text font-mono font-bold">{modQs.length}</span>
+                         </div>
+                         <div className="flex justify-between text-sm">
+                           <span className="text-theme-text-muted">Marks</span>
+                           <span className="text-theme-text font-mono font-bold">{marks}</span>
+                         </div>
+                         <div className="flex justify-between text-sm">
+                           <span className="text-theme-text-muted">Duration</span>
+                           <span className="text-theme-text font-mono font-bold">{mod.duration_minutes}m</span>
+                         </div>
+                       </div>
+                     </div>
+                   );
+                })}
               </div>
 
-              <div className="space-y-4 mb-10">
+              <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-sm font-mono font-bold">
                   <span className="text-brand-primary flex items-center gap-3">
                     <div className="w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full animate-spin"></div>
-                    {countdown > 7 ? 'Securing environment...' :
-                     countdown > 3 ? `Loading ${(examModulesMap[activeExam?.id] || [])[(10 - countdown) % (examModulesMap[activeExam?.id]?.length || 1)]?.module_name || 'Questions'} Module...` :
-                     'Finalizing setup...'}
+                    {countdown > 8 ? 'Securing environment...' :
+                     countdown > 6 ? 'Preparing questions...' :
+                     countdown > 4 ? 'Loading exam modules...' :
+                     countdown > 2 ? 'Initializing timer...' :
+                     'Verifying assessment settings...'}
                   </span>
                   <span className="text-theme-text-muted">{(10 - countdown) * 10}%</span>
                 </div>
                 {/* Progress Bar */}
-                <div className="w-full h-4 bg-theme-card-alt rounded-full overflow-hidden border border-theme-border">
+                <div className="w-full h-3 bg-theme-card-alt rounded-full overflow-hidden border border-theme-border">
                   <motion.div 
                     className="h-full bg-linear-to-r from-brand-primary to-brand-cyan relative"
                     animate={{ width: `${(10 - countdown) * 10}%` }}
@@ -776,9 +831,9 @@ Output only the JSON.`;
                 </div>
               </div>
 
-              <div className="text-center bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
-                <p className="text-red-400 text-sm font-bold flex items-center justify-center gap-2">
-                  <AlertTriangle className="w-4 h-4" /> Do not exit fullscreen or switch tabs during the exam.
+              <div className="text-center bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center justify-between">
+                <p className="text-red-400 text-sm font-bold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" /> ⚠ Do not exit fullscreen or switch tabs during the exam.
                 </p>
               </div>
             </motion.div>
@@ -1228,70 +1283,7 @@ Output only the JSON.`;
             )}
           </div>
         )}
-        {/* SECTION SUMMARY VIEW */}
-        {viewState === 'section_summary' && (
-          <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-             <div className="max-w-2xl w-full relative z-10 space-y-8">
-              <div className="text-center">
-                <h1 className="text-4xl font-black text-theme-text mb-2 tracking-tight">{currentModule?.module_name} Section Completed</h1>
-                <p className="text-xl text-theme-text-muted">Great job! Here is your summary for this section.</p>
-              </div>
 
-              <div className="bg-theme-card/80 border border-theme-border p-8 rounded-3xl glass-card shadow-xl space-y-6">
-                <div className="flex justify-between items-center pb-6 border-b border-theme-border">
-                  <span className="text-theme-text-muted font-bold uppercase tracking-wider">Total Questions</span>
-                  <span className="text-theme-text font-mono text-2xl font-black">{totalQ}</span>
-                </div>
-                <div className="flex justify-between items-center pb-6 border-b border-theme-border">
-                  <span className="text-emerald-400 font-bold uppercase tracking-wider">Answered</span>
-                  <span className="text-emerald-400 font-mono text-2xl font-black">
-                    {currentModuleQs.filter(q => answers[q.id]?.selected_option || answers[q.id]?.code_response).length}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-brand-secondary font-bold uppercase tracking-wider">Unanswered</span>
-                  <span className="text-brand-secondary font-mono text-2xl font-black">
-                    {totalQ - currentModuleQs.filter(q => answers[q.id]?.selected_option || answers[q.id]?.code_response).length}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setViewState('exam')} 
-                  className="px-8 py-5 text-gray-400 hover:text-white border border-theme-border rounded-2xl font-bold transition-colors hover:bg-theme-card"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleNextSection}
-                  className="flex-1 py-5 bg-brand-primary hover:bg-brand-secondary text-white rounded-2xl font-black text-xl transition-all shadow-lg shadow-brand-primary/20 flex justify-center items-center gap-3"
-                >
-                  Proceed To {currentModuleIndex < activeModules.length - 1 ? activeModules[currentModuleIndex + 1]?.module_name : 'Final Submission'} <ArrowRight className="w-6 h-6" />
-                </button>
-              </div>
-             </div>
-          </div>
-        )}
-
-        {/* TRANSITION VIEW */}
-        {viewState === 'transition' && (
-          <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden p-6">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-secondary/20 rounded-full blur-[120px] pointer-events-none"></div>
-            
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="glass-card w-full max-w-2xl bg-theme-card/80 border border-theme-border rounded-3xl p-12 relative z-10 shadow-2xl backdrop-blur-xl text-center"
-            >
-              <h3 className="text-brand-secondary font-bold uppercase tracking-widest mb-4">Next Section</h3>
-              <h1 className="text-5xl font-black text-theme-text mb-8 tracking-tight">{activeModules[currentModuleIndex + 1]?.module_name}</h1>
-              
-              <div className="text-theme-text-muted mb-6">Starts In</div>
-              <div className="text-8xl font-black text-theme-text font-mono">{transitionCountdown}</div>
-            </motion.div>
-          </div>
-        )}
         {/* 5. EXAM FEEDBACK VIEW */}
         {viewState === 'exam_feedback' && (
           <div className="min-h-screen flex flex-col items-center justify-center relative p-6">
