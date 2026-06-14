@@ -48,7 +48,7 @@ export default function MockTestsAdmin() {
   const [codingEvaluations, setCodingEvaluations] = useState({});
 
   // Wizard States
-  const [examForm, setExamForm] = useState({ title: '', description: '', duration_minutes: '', allow_calculator: false });
+  const [examForm, setExamForm] = useState({ title: '', description: '', instructions: '', duration_minutes: '', allow_calculator: false });
   const [selectedModules, setSelectedModules] = useState([]);
   const [draftQuestions, setDraftQuestions] = useState([]);
   
@@ -74,7 +74,7 @@ export default function MockTestsAdmin() {
     viewState === 'list' ? 'Mock Tests' :
     viewState === 'modules_list' ? 'Manage Modules' :
     viewState === 'module_form' ? 'Edit Module' :
-    viewState === 'step1' || viewState === 'step2' || viewState === 'review' ? 'Create Exam' :
+    viewState === 'step1' || viewState === 'step2' || viewState === 'review' || viewState === 'instructions_setup' ? 'Create Exam' :
     viewState === 'step3' ? 'Add Questions' :
     viewState === 'submissions_list' || viewState === 'student_attempts_list' || viewState === 'submission_detail' ? 'Exam Results' :
     'Mock Tests',
@@ -434,7 +434,7 @@ export default function MockTestsAdmin() {
         if (currentModuleIndex < selectedModules.length - 1) {
           setCurrentModuleIndex(currentModuleIndex + 1);
         } else {
-          setViewState('review');
+          setViewState('instructions_setup');
         }
         return;
       } else {
@@ -465,7 +465,7 @@ export default function MockTestsAdmin() {
       if (currentModuleIndex < selectedModules.length - 1) {
         setCurrentModuleIndex(currentModuleIndex + 1);
       } else {
-        setViewState('review');
+        setViewState('instructions_setup');
       }
     }
   };
@@ -716,7 +716,7 @@ export default function MockTestsAdmin() {
       // 1. Insert Exam
       const { data: testData, error: testError } = await supabase.from('mock_tests').insert([{
         title: examForm.title,
-        description: examForm.description,
+        description: examForm.instructions ? `${examForm.description}::INSTRUCTIONS::${examForm.instructions}` : examForm.description,
         duration_minutes: examForm.duration_minutes ? parseInt(examForm.duration_minutes, 10) : null,
         allow_calculator: examForm.allow_calculator,
         status: statusToSave
@@ -1324,9 +1324,53 @@ export default function MockTestsAdmin() {
                       Save & Add Another
                     </button>
                     <button onClick={() => handleSaveDraftQuestion(false)} className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-primary/80 transition-colors">
-                      {currentModuleIndex < selectedModules.length - 1 ? 'Next Module' : 'Review Exam'} <ArrowRight className="w-4 h-4" />
+                      {currentModuleIndex < selectedModules.length - 1 ? 'Next Module' : 'Setup Instructions'} <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 3.5: Instructions Setup */}
+          {viewState === 'instructions_setup' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card bg-theme-card/80 border border-theme-border rounded-3xl p-8 shadow-2xl relative z-10">
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h2 className="text-3xl font-black text-theme-text tracking-tight">Exam Instructions</h2>
+                  <p className="text-theme-text-muted mt-2">Define the custom rules and instructions students will see before starting the exam.</p>
+                </div>
+                <button 
+                  onClick={() => setExamForm(prev => ({
+                    ...prev, 
+                    instructions: "Read all questions carefully.\n\nDo not switch tabs or exit fullscreen.\n\nCalculator is available only for non-coding sections.\n\nCoding sections do not allow calculators.\n\nModule submission is final and cannot be reversed.\n\nAll answers are auto-saved.\n\nEnsure a stable internet connection before starting."
+                  }))}
+                  className="px-4 py-2 bg-theme-glass hover:bg-theme-border text-theme-text rounded-xl font-bold transition-colors border border-theme-border flex items-center gap-2 text-sm"
+                >
+                  <FileText className="w-4 h-4"/> Load Default Template
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-theme-text-muted mb-2 uppercase tracking-wider">Custom Instructions</label>
+                  <textarea
+                    value={examForm.instructions || ''}
+                    onChange={(e) => setExamForm({ ...examForm, instructions: e.target.value })}
+                    rows={12}
+                    placeholder="Enter instructions here. Line breaks are supported..."
+                    className="w-full bg-theme-bg border border-theme-border rounded-xl py-4 px-5 text-theme-text focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all font-serif resize-y"
+                  ></textarea>
+                  <div className="text-right text-xs text-theme-text-muted font-bold mt-2">
+                    {(examForm.instructions || '').length} characters
+                  </div>
+                </div>
+
+                <div className="flex justify-between pt-6 border-t border-theme-border">
+                  <button onClick={() => setViewState('step3')} className="px-6 py-3 rounded-xl text-sm font-semibold text-theme-text-muted hover:text-theme-text flex items-center gap-2"><ArrowLeft className="w-4 h-4"/> Back to Questions</button>
+                  <button onClick={() => setViewState('review')} className="flex items-center gap-2 px-8 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-secondary transition-colors shadow-lg shadow-brand-primary/20">
+                    Review Exam <ArrowRight className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </motion.div>

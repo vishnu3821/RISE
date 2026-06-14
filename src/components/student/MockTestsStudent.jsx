@@ -1510,30 +1510,20 @@ Output only the JSON.`;
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Left Column: Rules & Warnings */}
             <div className="flex-1 space-y-6">
-              <div className="glass-card p-10 rounded-[32px] bg-theme-card/40 border border-theme-border">
-                <h2 className="text-3xl font-black text-theme-text mb-8 tracking-tight">Exam Instructions</h2>
-                <div className="space-y-6">
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 rounded-full bg-brand-primary/20 flex items-center justify-center shrink-0 text-brand-primary font-bold">1</div>
-                    <div>
-                      <h4 className="text-theme-text font-bold text-lg mb-1">Stay Focused</h4>
-                      <p className="text-theme-text-muted leading-relaxed">Do not switch browser tabs, minimize the window, or refresh the page during the exam.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 rounded-full bg-brand-primary/20 flex items-center justify-center shrink-0 text-brand-primary font-bold">2</div>
-                    <div>
-                      <h4 className="text-theme-text font-bold text-lg mb-1">Auto-Save Enabled</h4>
-                      <p className="text-theme-text-muted leading-relaxed">Your answers are automatically saved to the database in real-time as you progress.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-4 items-start">
-                    <div className="w-10 h-10 rounded-full bg-brand-primary/20 flex items-center justify-center shrink-0 text-brand-primary font-bold">3</div>
-                    <div>
-                      <h4 className="text-theme-text font-bold text-lg mb-1">Review Before Submission</h4>
-                      <p className="text-theme-text-muted leading-relaxed">Use the 'Mark for Review' feature to flag difficult questions and check them on the final summary screen.</p>
-                    </div>
-                  </div>
+              <div className="glass-card p-10 rounded-[32px] bg-theme-card/40 border border-theme-border max-h-[500px] flex flex-col">
+                <div className="mb-6 shrink-0">
+                  <h2 className="text-3xl font-black text-theme-text tracking-tight">Exam Instructions</h2>
+                  <p className="text-theme-text-muted mt-2">Please read all instructions carefully before starting the examination.</p>
+                </div>
+                
+                <div className="overflow-y-auto pr-4 space-y-4 font-serif text-theme-text-muted whitespace-pre-wrap flex-1 custom-scrollbar">
+                  {(() => {
+                    let inst = "Read all questions carefully.\n\nDo not switch tabs or exit fullscreen.\n\nCalculator is available only for non-coding sections.\n\nCoding sections do not allow calculators.\n\nModule submission is final and cannot be reversed.\n\nAll answers are auto-saved.\n\nEnsure a stable internet connection before starting.";
+                    if (activeExam?.description?.includes('::INSTRUCTIONS::')) {
+                      inst = activeExam.description.split('::INSTRUCTIONS::')[1] || inst;
+                    }
+                    return inst;
+                  })()}
                 </div>
               </div>
 
@@ -1556,7 +1546,11 @@ Output only the JSON.`;
                 <div className="relative z-10">
                   <div className="text-brand-primary font-bold text-sm uppercase tracking-widest mb-4">Ready to Begin</div>
                   <h1 className="text-3xl font-black text-theme-text mb-2 leading-tight">{activeExam?.title}</h1>
-                  <p className="text-theme-text-muted mb-8">{activeExam?.description || "Comprehensive Assessment"}</p>
+                  <p className="text-theme-text-muted mb-8">
+                    {activeExam?.description?.includes('::INSTRUCTIONS::') 
+                      ? activeExam.description.split('::INSTRUCTIONS::')[0] 
+                      : (activeExam?.description || "Comprehensive Assessment")}
+                  </p>
                   
                   <div className="space-y-4 mb-10">
                     {studentAttempts[activeExam?.id] && (
@@ -1571,16 +1565,35 @@ Output only the JSON.`;
                       <span className="text-theme-text font-black text-xl">{activeQuestions.length}</span>
                     </div>
                     <div className="bg-theme-card-alt/50 p-5 rounded-2xl flex justify-between items-center border border-theme-border">
-                      <span className="text-theme-text-muted font-bold">Estimated Duration</span>
+                      <span className="text-theme-text-muted font-bold">Total Marks</span>
                       <span className="text-theme-text font-black text-xl">
-                        {activeExam?.duration_minutes || 120} mins
+                        {activeQuestions.reduce((sum, q) => sum + (q.marks || 1), 0)}
                       </span>
                     </div>
+                    <div className="bg-theme-card-alt/50 p-5 rounded-2xl flex justify-between items-center border border-theme-border">
+                      <span className="text-theme-text-muted font-bold">Estimated Duration</span>
+                      <span className="text-theme-text font-black text-xl">
+                        {activeExam?.duration_minutes || 120} Minutes
+                      </span>
+                    </div>
+                    <div className="bg-theme-card-alt/50 p-5 rounded-2xl flex justify-between items-center border border-theme-border">
+                      <span className="text-theme-text-muted font-bold">Calculator Availability</span>
+                      <span className="text-theme-text font-black text-sm uppercase tracking-wider px-3 py-1 rounded bg-theme-bg border border-theme-border">
+                        {activeExam?.allow_calculator ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+
                     <div className="bg-theme-card-alt/50 p-5 rounded-2xl flex flex-col border border-theme-border">
-                      <span className="text-theme-text-muted font-bold mb-3">Modules Included</span>
-                      <div className="flex flex-wrap gap-2">
+                      <span className="text-theme-text-muted font-bold mb-4">Modules Included</span>
+                      <div className="grid grid-cols-2 gap-3">
                         {(examModulesMap[activeExam?.id] || []).map(m => (
-                          <span key={m.module_name} className="px-3 py-1 bg-theme-glass text-gray-300 font-bold text-xs uppercase tracking-wider rounded border border-theme-border">{m.module_name}</span>
+                          <div key={m.module_name} className="p-3 bg-theme-bg border border-theme-border rounded-xl">
+                            <div className="font-bold text-theme-text mb-1">{m.module_name}</div>
+                            <div className="text-xs text-theme-text-muted space-y-1">
+                              <div>{m.question_count} Questions</div>
+                              <div>{m.duration_minutes} Minutes</div>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
