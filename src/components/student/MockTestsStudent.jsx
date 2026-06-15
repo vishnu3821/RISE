@@ -200,27 +200,37 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (video && canvas && currentAttemptId) {
+        // Ensure video is actually playing and has dimensions
+        if (video.videoWidth === 0 || video.readyState < 2) {
+          console.warn("Video not ready for snapshot yet...");
+          return; // Skip this snapshot attempt
+        }
+        
         const context = canvas.getContext('2d');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
         // Compress heavily: 50% quality JPEG
         const snapshotBase64 = canvas.toDataURL('image/jpeg', 0.5);
         
-        try {
-          await supabase.from('mock_test_proctoring').insert([{
-            attempt_id: currentAttemptId,
-            snapshot_base64: snapshotBase64
-          }]);
-        } catch (e) {
-          console.error('Failed to upload snapshot:', e);
+        // Don't upload blank canvas
+        if (snapshotBase64.length < 100) return;
+
+        const { error } = await supabase.from('mock_test_proctoring').insert([{
+          attempt_id: currentAttemptId,
+          snapshot_base64: snapshotBase64
+        }]);
+        
+        if (error) {
+          console.error('Supabase Snapshot Error:', error);
         }
       }
     };
 
     if ((viewState === 'exam' || viewState === 'review') && activeExam?.require_webcam && webcamEnabled) {
-      // Take one snapshot immediately when they enter the exam/review state
-      takeSnapshot();
+      // Take one snapshot after a short delay to ensure video has loaded
+      setTimeout(takeSnapshot, 3000);
       
       // Then take one every 2 minutes
       proctorInterval = setInterval(takeSnapshot, 2 * 60 * 1000);
