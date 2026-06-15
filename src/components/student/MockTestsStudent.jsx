@@ -181,6 +181,9 @@ export default function MockTestsStudent({ searchQuery = '' }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       window.stream = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
       setWebcamEnabled(true);
       setCountdown(10);
       setViewState('countdown');
