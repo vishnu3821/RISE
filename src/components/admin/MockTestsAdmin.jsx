@@ -307,7 +307,7 @@ export default function MockTestsAdmin() {
       });
       
       // 3. Fetch Proctoring
-      const { data: procData, error: procError } = await supabase.from('mock_test_proctoring').select('*').eq('attempt_id', attempt.id).order('captured_at', { ascending: true });
+      const { data: procData, error: procError } = await supabase.from('mock_test_proctoring').select('*').eq('attempt_id', attempt.id).order('created_at', { ascending: true });
       // If error occurs here, it might just mean the table doesn't exist yet, we can gracefully ignore it for now or log it
       if (procError && procError.code !== '42P01') console.error(procError);
 
@@ -1872,7 +1872,7 @@ export default function MockTestsAdmin() {
                           <input 
                             type="number" 
                             min="0" 
-                            max={(q.marks || 1) + 2} // Add AI bonus potential
+                            max={(q.marks || 1) + 2}
                             value={codingEvaluations[q.id] !== undefined ? codingEvaluations[q.id] : (answer?.score || 0)}
                             onChange={(e) => setCodingEvaluations({...codingEvaluations, [q.id]: parseInt(e.target.value) || 0})}
                             className="bg-theme-card border border-theme-border text-theme-text font-mono text-center rounded-lg w-20 py-2 px-3 outline-none focus:border-brand-primary"
@@ -1895,6 +1895,29 @@ export default function MockTestsAdmin() {
 
           {reviewTab === 'proctoring' && (
             <div className="space-y-6">
+              
+              {/* Security Summary Card */}
+              <div className="bg-theme-card border border-theme-border p-6 rounded-[32px] flex flex-col md:flex-row gap-6 items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-theme-text mb-1">Security Summary</h3>
+                  <p className="text-theme-text-muted text-sm">Auto-tracked by RISE Proctoring Engine</p>
+                </div>
+                <div className="flex gap-4">
+                  <div className="bg-theme-bg border border-theme-border px-6 py-3 rounded-2xl text-center">
+                    <div className="text-3xl font-black text-brand-primary">{activeSubmission.tab_switches || 0}</div>
+                    <div className="text-xs font-bold text-theme-text-muted uppercase tracking-widest mt-1">Tab Switches</div>
+                  </div>
+                  {activeSubmission.status === 'disqualified' && (
+                    <div className="bg-red-500/10 border border-red-500/20 px-6 py-3 rounded-2xl flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-red-400 font-bold uppercase tracking-widest text-xs mb-1">Disqualified</div>
+                        <div className="text-sm font-medium text-red-300">{activeSubmission.module_state?.violation_reason || 'Security Violation'}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {proctoringLogs.length === 0 ? (
                 <div className="text-center py-20 bg-theme-card border border-theme-border rounded-[32px]">
                   <Camera className="w-16 h-16 text-theme-text-muted/30 mx-auto mb-4" />
@@ -1907,7 +1930,7 @@ export default function MockTestsAdmin() {
                     <div key={log.id} className="bg-theme-card border border-theme-border rounded-3xl overflow-hidden shadow-lg">
                       <div className="bg-brand-bg/50 px-4 py-3 border-b border-theme-border flex items-center justify-between">
                         <span className="text-theme-text font-bold text-sm">Snapshot {i + 1}</span>
-                        <span className="text-theme-text-muted text-xs">{new Date(log.captured_at).toLocaleTimeString()}</span>
+                        <span className="text-theme-text-muted text-xs">{new Date(log.created_at).toLocaleTimeString()}</span>
                       </div>
                       <div className="aspect-video bg-black relative">
                         <img src={log.snapshot_base64} alt={`Proctoring Snapshot ${i + 1}`} className="w-full h-full object-cover" />
