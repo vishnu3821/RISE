@@ -48,7 +48,7 @@ export default function MockTestsAdmin() {
   const [codingEvaluations, setCodingEvaluations] = useState({});
 
   // Wizard States
-  const [examForm, setExamForm] = useState({ title: '', description: '', instructions: '', duration_minutes: '', allow_calculator: false });
+  const [examForm, setExamForm] = useState({ title: '', description: '', instructions: '', duration_minutes: '', allow_calculator: false, attempt_type: 'unlimited', max_attempts: '' });
   const [selectedModules, setSelectedModules] = useState([]);
   const [draftQuestions, setDraftQuestions] = useState([]);
   
@@ -719,6 +719,7 @@ export default function MockTestsAdmin() {
         description: examForm.instructions ? `${examForm.description}::INSTRUCTIONS::${examForm.instructions}` : examForm.description,
         duration_minutes: examForm.duration_minutes ? parseInt(examForm.duration_minutes, 10) : null,
         allow_calculator: examForm.allow_calculator,
+        max_attempts: examForm.attempt_type === 'limited' ? parseInt(examForm.max_attempts, 10) || null : null,
         status: statusToSave
       }]).select();
       if (testError) throw testError;
@@ -826,6 +827,7 @@ export default function MockTestsAdmin() {
                 <th className="px-6 py-4">Exam Name</th>
                 <th className="px-6 py-4">Modules</th>
                 <th className="px-6 py-4">Questions</th>
+                <th className="px-6 py-4">Attempt Policy</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -846,6 +848,11 @@ export default function MockTestsAdmin() {
                   </td>
                   <td className="px-6 py-4 text-theme-text-muted font-mono text-sm">
                     {examQuestionCounts[exam.id] || 0} Qs
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm font-bold text-theme-text-muted">
+                      {exam.max_attempts ? `${exam.max_attempts} Attempt${exam.max_attempts > 1 ? 's' : ''}` : 'Unlimited'}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider ${exam.status === 'published' ? 'bg-brand-primary/20 text-brand-primary' : 'bg-yellow-500/10 text-yellow-500'}`}>
@@ -1032,6 +1039,29 @@ export default function MockTestsAdmin() {
                     >
                       <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${examForm.allow_calculator ? 'translate-x-6' : ''}`}></div>
                     </button>
+                  </div>
+                </div>
+                <div className="pt-6 border-t border-theme-border">
+                  <h3 className="text-sm font-bold text-theme-text uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <User className="w-4 h-4 text-brand-secondary" /> Attempt Settings
+                  </h3>
+                  <div className="bg-theme-card border border-theme-border rounded-xl p-5 space-y-4">
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="attempt_type" value="unlimited" checked={examForm.attempt_type === 'unlimited'} onChange={() => setExamForm({...examForm, attempt_type: 'unlimited'})} className="text-brand-primary focus:ring-brand-primary" />
+                        <span className="text-theme-text font-bold text-sm">Unlimited Attempts</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="attempt_type" value="limited" checked={examForm.attempt_type === 'limited'} onChange={() => setExamForm({...examForm, attempt_type: 'limited'})} className="text-brand-primary focus:ring-brand-primary" />
+                        <span className="text-theme-text font-bold text-sm">Limited Attempts</span>
+                      </label>
+                    </div>
+                    {examForm.attempt_type === 'limited' && (
+                      <div className="mt-4">
+                        <label className="block text-xs font-bold text-theme-text-muted mb-2 uppercase tracking-wider">Maximum Attempts</label>
+                        <input type="number" min="1" value={examForm.max_attempts} onChange={e => setExamForm({...examForm, max_attempts: e.target.value})} className="w-full max-w-[200px] bg-brand-bg border border-theme-border rounded-xl py-2 px-4 text-theme-text focus:border-brand-primary outline-none" placeholder="e.g. 1, 2, 3" />
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-end pt-4 border-t border-theme-border">
@@ -1525,7 +1555,9 @@ export default function MockTestsAdmin() {
                 <tr className="bg-brand-bg/50 border-b border-theme-border text-xs font-bold text-theme-text-muted uppercase tracking-wider">
                   <th className="px-6 py-4">Attempt #</th>
                   <th className="px-6 py-4">Submitted At</th>
+                  <th className="px-6 py-4">Marks</th>
                   <th className="px-6 py-4">Security Status</th>
+                  <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -1538,6 +1570,9 @@ export default function MockTestsAdmin() {
                     <td className="px-6 py-4 text-theme-text-muted text-sm">
                       {new Date(attempt.submitted_at).toLocaleString()}
                     </td>
+                    <td className="px-6 py-4 text-theme-text font-mono font-bold">
+                      {attempt.total_score || 0}
+                    </td>
                     <td className="px-6 py-4">
                       {attempt.tab_switches > 0 ? (
                         <span className="px-2.5 py-1 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-bold flex items-center gap-2 w-max">
@@ -1548,6 +1583,11 @@ export default function MockTestsAdmin() {
                           <CheckCircle2 className="w-3 h-3" /> Clean
                         </span>
                       )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${attempt.status === 'disqualified' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-brand-primary/20 text-brand-primary border border-brand-primary/30'}`}>
+                        {attempt.status || 'completed'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => handleReviewDetail(attempt)} className="px-4 py-2 bg-brand-primary text-white hover:bg-brand-secondary rounded-xl font-bold transition-colors text-xs flex items-center gap-2 ml-auto shadow-lg shadow-brand-primary/20">

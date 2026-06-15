@@ -29,7 +29,8 @@ export default function MockTestsStudent({ searchQuery = '' }) {
   // Data States
   const [availableExams, setAvailableExams] = useState([]);
   const [examModulesMap, setExamModulesMap] = useState({});
-  const [studentAttempts, setStudentAttempts] = useState({});
+  const [studentAttempts, setStudentAttempts] = useState({}); // Best attempt per exam
+  const [allStudentAttempts, setAllStudentAttempts] = useState({}); // All attempts per exam
   const [loading, setLoading] = useState(true);
 
   // Active Exam States
@@ -248,9 +249,13 @@ export default function MockTestsStudent({ searchQuery = '' }) {
         });
       }
 
-      const attemptsMap = {};
+      const attemptsMap = {}; // Will hold best attempt for quick reference
+      const allAttemptsMap = {}; // Will hold array of all attempts
+
       if (attemptData) {
         attemptData.forEach(att => {
+           if (!allAttemptsMap[att.test_id]) allAttemptsMap[att.test_id] = [];
+           allAttemptsMap[att.test_id].push(att);
            let totalMarks = 0;
            if (att.mock_test_answers) {
              att.mock_test_answers.forEach(ans => totalMarks += (ans.obtained_marks || 0));
@@ -271,6 +276,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       setAvailableExams(testData || []);
       setExamModulesMap(modsMap);
       setStudentAttempts(attemptsMap);
+      setAllStudentAttempts(allAttemptsMap);
     } catch (err) {
       console.error('Error fetching exams:', err);
     } finally {
@@ -1707,11 +1713,47 @@ Output only the JSON.`;
                         ))}
                       </div>
                     </div>
+                    <div className="bg-theme-card-alt/50 p-5 rounded-2xl flex flex-col border border-theme-border">
+                      <span className="text-theme-text-muted font-bold mb-4">Attempt Information</span>
+                      {!activeExam?.max_attempts ? (
+                        <div className="text-emerald-400 font-bold flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5" /> Unlimited Attempts
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-theme-text-muted">Maximum Attempts</span>
+                            <span className="text-theme-text font-bold">{activeExam.max_attempts}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-theme-text-muted">Attempts Used</span>
+                            <span className="text-theme-text font-bold">{allStudentAttempts[activeExam.id]?.length || 0} / {activeExam.max_attempts}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-theme-text-muted">Attempts Remaining</span>
+                            <span className="text-theme-text font-bold">{Math.max(0, activeExam.max_attempts - (allStudentAttempts[activeExam.id]?.length || 0))}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <button onClick={handleStartCountdown} className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-brand-primary text-white rounded-2xl font-black text-xl hover:bg-brand-secondary transition-all hover:scale-[1.02] shadow-[0_10px_30px_rgba(var(--brand-primary-rgb),0.3)]">
-                    <PlayCircle className="w-7 h-7" /> {studentAttempts[activeExam?.id] ? 'Re-Attempt Exam' : 'Start Exam'}
-                  </button>
+                  {activeExam?.max_attempts && (allStudentAttempts[activeExam?.id]?.length || 0) >= activeExam.max_attempts ? (
+                    <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex flex-col items-center text-center">
+                      <MonitorX className="w-8 h-8 text-red-500 mb-2" />
+                      <h4 className="text-red-400 font-bold mb-1">
+                        {activeExam.max_attempts === 1 ? 'This exam can only be attempted once.' : 'Attempt Limit Reached'}
+                      </h4>
+                      {activeExam.max_attempts > 1 && (
+                        <p className="text-red-400/80 text-sm">You have already used all {activeExam.max_attempts} attempts allowed for this examination. Further attempts are not permitted.</p>
+                      )}
+                      <div className="mt-4 px-4 py-1.5 bg-red-500/20 text-red-500 font-bold text-xs uppercase tracking-widest rounded">Status: Completed</div>
+                    </div>
+                  ) : (
+                    <button onClick={handleStartCountdown} className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-brand-primary text-white rounded-2xl font-black text-xl hover:bg-brand-secondary transition-all hover:scale-[1.02] shadow-[0_10px_30px_rgba(var(--brand-primary-rgb),0.3)]">
+                      <PlayCircle className="w-7 h-7" /> {allStudentAttempts[activeExam?.id]?.length > 0 ? 'Re-Attempt Exam' : 'Start Exam'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
