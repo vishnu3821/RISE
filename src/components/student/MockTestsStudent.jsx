@@ -200,11 +200,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
     setViolationReason(reason);
     setTabSwitches(prev => {
       const newCount = prev + 1;
-      if (newCount >= 3) {
-        handleDisqualify(reason);
-      } else {
-        setShowViolationModal(true);
-      }
+      setShowViolationModal(true);
       return newCount;
     });
   };
@@ -995,10 +991,10 @@ Output only the JSON.`;
                 <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
                   <AlertTriangle className="w-10 h-10" />
                 </div>
-                <h3 className="text-2xl font-black text-theme-text mb-2 tracking-tight">Warning {tabSwitches} of 3</h3>
-                <h4 className="text-red-400 font-bold mb-4">{violationReason || (tabSwitches === 1 ? 'Tab switching or leaving fullscreen has been detected.' : 'Security violations have been detected again.')}</h4>
+                <h3 className="text-2xl font-black text-theme-text mb-2 tracking-tight">Security Warning</h3>
+                <h4 className="text-red-400 font-bold mb-4">{violationReason || 'Security violations have been detected.'}</h4>
                 <p className="text-gray-300 mb-8 leading-relaxed">
-                  {tabSwitches === 1 ? 'Repeated violations may terminate the exam.' : 'One more violation will automatically disqualify you.'}
+                  Please follow the exam rules. Repeated violations will be logged.
                 </p>
                 <button 
                   onClick={() => setShowViolationModal(false)} 
