@@ -524,6 +524,8 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       }]).select();
       
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Failed to create attempt. Missing database permissions or invalid request.');
+      
       setCurrentAttemptId(data[0].id);
       setCurrentQuestionIndex(0);
       
@@ -904,7 +906,7 @@ Output only the JSON.`;
     }
   };
 
-  const isFullScreen = ['countdown', 'exam', 'review', 'results', 'exam_feedback'].includes(viewState);
+  const isFullScreen = ['hardware_check', 'countdown', 'exam', 'review', 'results', 'exam_feedback'].includes(viewState);
 
   // FULL SCREEN VIEWS
   if (isFullScreen) {
