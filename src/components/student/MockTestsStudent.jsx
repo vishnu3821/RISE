@@ -195,28 +195,35 @@ export default function MockTestsStudent({ searchQuery = '' }) {
   // Webcam Snapshot Logic
   useEffect(() => {
     let proctorInterval;
-    if ((viewState === 'exam' || viewState === 'review') && activeExam?.require_webcam && webcamEnabled) {
-      proctorInterval = setInterval(async () => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (video && canvas && currentAttemptId) {
-          const context = canvas.getContext('2d');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          // Compress heavily: 50% quality JPEG
-          const snapshotBase64 = canvas.toDataURL('image/jpeg', 0.5);
-          
-          try {
-            await supabase.from('mock_test_proctoring').insert([{
-              attempt_id: currentAttemptId,
-              snapshot_base64: snapshotBase64
-            }]);
-          } catch (e) {
-            console.error('Failed to upload snapshot:', e);
-          }
+    
+    const takeSnapshot = async () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (video && canvas && currentAttemptId) {
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Compress heavily: 50% quality JPEG
+        const snapshotBase64 = canvas.toDataURL('image/jpeg', 0.5);
+        
+        try {
+          await supabase.from('mock_test_proctoring').insert([{
+            attempt_id: currentAttemptId,
+            snapshot_base64: snapshotBase64
+          }]);
+        } catch (e) {
+          console.error('Failed to upload snapshot:', e);
         }
-      }, 3 * 60 * 1000); // Every 3 minutes
+      }
+    };
+
+    if ((viewState === 'exam' || viewState === 'review') && activeExam?.require_webcam && webcamEnabled) {
+      // Take one snapshot immediately when they enter the exam/review state
+      takeSnapshot();
+      
+      // Then take one every 2 minutes
+      proctorInterval = setInterval(takeSnapshot, 2 * 60 * 1000);
     }
     return () => clearInterval(proctorInterval);
   }, [viewState, activeExam, webcamEnabled, currentAttemptId]);
