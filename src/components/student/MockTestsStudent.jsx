@@ -51,6 +51,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
   const [timeRemaining, setTimeRemaining] = useState(null); // Overall exam timer
   const [sectionTimeRemaining, setSectionTimeRemaining] = useState(null); // Section timer
   const [tabSwitches, setTabSwitches] = useState(0);
+  const [violationReason, setViolationReason] = useState('');
 
   const timeRemainingRef = useRef(timeRemaining);
   const sectionTimeRemainingRef = useRef(sectionTimeRemaining);
@@ -164,33 +165,43 @@ export default function MockTestsStudent({ searchQuery = '' }) {
     };
   }, [viewState]);
 
-  const handleDisqualify = async () => {
+  const handleDisqualify = async (reason = 'Multiple security violations') => {
     setShowViolationModal(false);
     setShowFullscreenModal(false);
     setShowSubmitModal(false);
     setShowTabWarning(false);
     
     if (currentAttemptId) {
-      await supabase.from('mock_test_attempts').update({
-        status: 'disqualified',
-        tab_switches: 3,
-        submitted_at: new Date().toISOString()
-      }).eq('id', currentAttemptId);
+      try {
+        const { data } = await supabase.from('mock_test_attempts').select('module_state').eq('id', currentAttemptId).maybeSingle();
+        const currentState = data?.module_state || {};
+        currentState.violation_reason = reason;
+
+        await supabase.from('mock_test_attempts').update({
+          status: 'disqualified',
+          tab_switches: 3,
+          submitted_at: new Date().toISOString(),
+          module_state: currentState
+        }).eq('id', currentAttemptId);
+      } catch (e) {
+        console.error('Error logging disqualification reason', e);
+      }
     }
     
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(e => console.log(e));
     }
-    alert("EXAM TERMINATED: You have been disqualified due to multiple security violations.");
+    alert(`EXAM TERMINATED: You have been disqualified. Reason: ${reason}`);
     setViewState('list');
     setActiveExam(null);
   };
 
-  const handleSecurityViolation = () => {
+  const handleSecurityViolation = (reason = 'Leaving the exam screen or attempting to open other applications is prohibited.') => {
+    setViolationReason(reason);
     setTabSwitches(prev => {
       const newCount = prev + 1;
       if (newCount >= 3) {
-        handleDisqualify();
+        handleDisqualify(reason);
       } else {
         setShowViolationModal(true);
       }
@@ -204,7 +215,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
         if (e.type === 'fullscreenchange' && !document.fullscreenElement) {
            setShowFullscreenModal(true);
         } else if (e.type !== 'fullscreenchange') {
-           handleSecurityViolation();
+           handleSecurityViolation('Leaving the exam screen or attempting to open other applications is prohibited.');
         }
       };
 
@@ -213,9 +224,45 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       };
 
       const handleBeforeUnload = (e) => {
-        handleSecurityViolation();
+        handleSecurityViolation('Leaving the exam screen or attempting to open other applications is prohibited.');
         e.preventDefault();
         e.returnValue = '';
+      };
+
+      const handleCopyPaste = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSecurityViolation('Copy and paste operations are not allowed during the examination.');
+      };
+
+      const handleContextMenu = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSecurityViolation('Right-click context menu is disabled.');
+      };
+
+      const handleKeyDown = (e) => {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+        // Block Copy, Paste, Cut
+        if (cmdOrCtrl && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleSecurityViolation('Copy, cut, and paste shortcuts are disabled.');
+        }
+
+        // Block Dev Tools
+        if (
+          e.key === 'F12' ||
+          (cmdOrCtrl && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) ||
+          (cmdOrCtrl && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'U' || e.key === 'u')) ||
+          (cmdOrCtrl && (e.key === 'U' || e.key === 'u'))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleSecurityViolation('Developer tools and inspect element shortcuts are disabled.');
+        }
       };
 
       window.addEventListener('blur', handleViolationEvent);
@@ -223,6 +270,13 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       document.addEventListener('fullscreenchange', handleViolationEvent);
       window.addEventListener('beforeunload', handleBeforeUnload);
       window.addEventListener('popstate', handleViolationEvent);
+      
+      // Capture phase listeners for copy-paste and dev tools
+      document.addEventListener('copy', handleCopyPaste, true);
+      document.addEventListener('paste', handleCopyPaste, true);
+      document.addEventListener('cut', handleCopyPaste, true);
+      document.addEventListener('contextmenu', handleContextMenu, true);
+      document.addEventListener('keydown', handleKeyDown, true);
 
       // Force fullscreen automatically on entering countdown
       if (viewState === 'countdown' && !document.fullscreenElement && document.documentElement.requestFullscreen) {
@@ -237,6 +291,12 @@ export default function MockTestsStudent({ searchQuery = '' }) {
         document.removeEventListener('fullscreenchange', handleViolationEvent);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         window.removeEventListener('popstate', handleViolationEvent);
+
+        document.removeEventListener('copy', handleCopyPaste, true);
+        document.removeEventListener('paste', handleCopyPaste, true);
+        document.removeEventListener('cut', handleCopyPaste, true);
+        document.removeEventListener('contextmenu', handleContextMenu, true);
+        document.removeEventListener('keydown', handleKeyDown, true);
       };
     }
   }, [viewState, currentAttemptId]);
@@ -936,7 +996,7 @@ Output only the JSON.`;
                   <AlertTriangle className="w-10 h-10" />
                 </div>
                 <h3 className="text-2xl font-black text-theme-text mb-2 tracking-tight">Warning {tabSwitches} of 3</h3>
-                <h4 className="text-red-400 font-bold mb-4">{tabSwitches === 1 ? 'Tab switching or leaving fullscreen has been detected.' : 'Security violations have been detected again.'}</h4>
+                <h4 className="text-red-400 font-bold mb-4">{violationReason || (tabSwitches === 1 ? 'Tab switching or leaving fullscreen has been detected.' : 'Security violations have been detected again.')}</h4>
                 <p className="text-gray-300 mb-8 leading-relaxed">
                   {tabSwitches === 1 ? 'Repeated violations may terminate the exam.' : 'One more violation will automatically disqualify you.'}
                 </p>
@@ -1747,9 +1807,15 @@ Output only the JSON.`;
                 <div className="w-14 h-14 bg-red-500/20 rounded-2xl flex items-center justify-center shrink-0 text-red-500">
                   <MonitorX className="w-7 h-7" />
                 </div>
-                <div>
-                  <h3 className="text-red-400 font-bold text-xl mb-2">Tab Switching is Monitored</h3>
-                  <p className="text-red-400/80 leading-relaxed">Leaving the exam screen or attempting to open other applications may lead to automatic disqualification and termination of the exam.</p>
+                <div className="flex-1">
+                  <h3 className="text-red-400 font-bold text-xl mb-3">Security Monitoring Active</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-sm text-red-400/80">
+                    <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-red-400" /> Tab Switching Detection</div>
+                    <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-red-400" /> Fullscreen Monitoring</div>
+                    <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-red-400" /> Copy-Paste Protection</div>
+                    <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-red-400" /> Developer Tools Monitoring</div>
+                    <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-red-400" /> Auto Save Enabled</div>
+                  </div>
                 </div>
               </div>
             </div>
