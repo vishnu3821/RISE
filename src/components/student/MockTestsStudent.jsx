@@ -486,7 +486,10 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       const { data: codingData, error: codingError } = await supabase.from('mock_test_coding_questions').select('*').eq('test_id', exam.id);
       if (codingError) throw codingError;
 
-      let allQuestions = [...(mcqData || [])];
+      let allQuestions = (mcqData || []).map(q => ({
+        ...q,
+        module_name: mods.find(m => m.id === q.module_id)?.module_name || 'Module'
+      }));
 
       if (codingData && codingData.length > 0) {
         // Fetch test cases for these coding questions
@@ -499,7 +502,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
             ...cq,
             question_type: 'CODING',
             question_text: cq.problem_statement, // alias to match MCQ
-            module_name: mods.find(m => m.module_id === cq.module_id)?.module_name || 'Coding',
+            module_name: mods.find(m => m.id === cq.module_id)?.module_name || 'Coding',
             test_cases: tcData.filter(tc => tc.question_id === cq.id)
           }));
           allQuestions = [...allQuestions, ...mappedCodingQuestions];
