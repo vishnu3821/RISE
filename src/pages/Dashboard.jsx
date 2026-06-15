@@ -66,7 +66,7 @@ export default function Dashboard() {
         { count: learnCount, data: learnData },
         { count: interviewCount, data: interviewData }
       ] = await Promise.all([
-        supabase.from('mock_test_attempts').select('test_id, created_at, mock_tests(title)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'submitted').order('created_at', { ascending: false }).limit(5),
+        supabase.from('mock_test_attempts').select('test_id, started_at, mock_tests(title)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'submitted').order('started_at', { ascending: false }).limit(5),
         supabase.from('student_progress').select('created_at, questions(title)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(5),
         supabase.from('learning_hub_progress').select('created_at, learning_hub_questions(learning_hub_topics(title))', { count: 'exact' }).eq('student_id', user.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(5),
         supabase.from('ai_interview_attempts').select('created_at, ai_interview_modules(name)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(5)
@@ -119,7 +119,7 @@ export default function Dashboard() {
         { data: interviewTodayData }
       ] = await Promise.all([
         supabase.from('learning_hub_progress').select('id, question_id').eq('student_id', user.id).gte('created_at', startOfDay.toISOString()),
-        supabase.from('mock_test_attempts').select('id').eq('student_id', user.id).gte('created_at', startOfDay.toISOString()),
+        supabase.from('mock_test_attempts').select('id').eq('student_id', user.id).gte('started_at', startOfDay.toISOString()),
         supabase.from('ai_interview_attempts').select('id').eq('student_id', user.id).gte('created_at', startOfDay.toISOString())
       ]);
 
@@ -136,7 +136,7 @@ export default function Dashboard() {
         { data: mockWeekData }
       ] = await Promise.all([
         supabase.from('learning_hub_progress').select('id, question_id').eq('student_id', user.id).gte('created_at', startOfWeek.toISOString()),
-        supabase.from('mock_test_attempts').select('id').eq('student_id', user.id).eq('status', 'submitted').gte('created_at', startOfWeek.toISOString())
+        supabase.from('mock_test_attempts').select('id').eq('student_id', user.id).eq('status', 'submitted').gte('started_at', startOfWeek.toISOString())
       ]);
 
       const lhWeekCoding = (lhWeekData || []).filter(row => codingQuestionIds.has(row.question_id)).length;
@@ -217,8 +217,8 @@ export default function Dashboard() {
           color: 'bg-brand-cyan',
           title: 'Completed Mock Test',
           desc: m.mock_tests?.title || 'Practice Test',
-          time: timeAgo(m.created_at),
-          date: new Date(m.created_at)
+          time: timeAgo(m.started_at),
+          date: new Date(m.started_at)
         })));
       }
       if (pyqData) {
