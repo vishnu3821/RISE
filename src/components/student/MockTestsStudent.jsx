@@ -1073,10 +1073,9 @@ Output only the JSON.`;
             </div>
           )}
         </AnimatePresence>
-        <AnimatePresence>
-          <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-          <canvas ref={canvasRef} className="hidden" />
-        </AnimatePresence>
+
+        <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+        <canvas ref={canvasRef} className="hidden" />
 
         {/* 0. HARDWARE CHECK VIEW */}
         {viewState === 'hardware_check' && (
