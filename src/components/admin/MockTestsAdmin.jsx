@@ -1890,7 +1890,8 @@ export default function MockTestsAdmin() {
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
 
           {reviewTab === 'proctoring' && (
             <div className="space-y-6">
