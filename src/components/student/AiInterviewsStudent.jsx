@@ -513,10 +513,7 @@ Do NOT wrap the response in markdown code blocks. Return only raw JSON.`;
           <div className="w-8 h-8 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center shrink-0 mt-1"><Mic className="w-5 h-5" /></div>
           <div><h4 className="text-theme-text font-bold mb-1">Speak Naturally</h4><p className="text-sm text-theme-text-muted">Answer as you would in a real interview. Speak clearly and at a normal pace.</p></div>
         </div>
-        <div className="flex items-start gap-4">
-          <div className="w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-500 flex items-center justify-center shrink-0 mt-1"><AlertCircle className="w-5 h-5" /></div>
-          <div><h4 className="text-theme-text font-bold mb-1">Editable Transcripts</h4><p className="text-sm text-theme-text-muted">Your speech will be converted to text automatically. You can edit the text before moving to the next question.</p></div>
-        </div>
+
         <div className="flex items-start gap-4">
           <div className="w-8 h-8 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center shrink-0 mt-1"><AlertCircle className="w-5 h-5" /></div>
           <div><h4 className="text-theme-text font-bold mb-1">One Attempt Only</h4><p className="text-sm text-theme-text-muted">You may only attempt this specific interview module once. Ensure you are fully prepared.</p></div>
