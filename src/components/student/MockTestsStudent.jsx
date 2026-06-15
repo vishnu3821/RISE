@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { 
   ClipboardList, ArrowRight, Clock, Layers, BookOpen, 
-  CheckCircle2, AlertCircle, PlayCircle, ArrowLeft, Bookmark, Timer, AlertTriangle, MonitorX, Star, Calculator
+  CheckCircle2, AlertCircle, PlayCircle, ArrowLeft, Bookmark, Timer, AlertTriangle, MonitorX, Star, Calculator, Camera
 } from 'lucide-react';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import CodeMirror from '@uiw/react-codemirror';
