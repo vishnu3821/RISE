@@ -723,6 +723,45 @@ export default function MockTestsAdmin() {
     }
   };
 
+  const handleGrantResume = async (attemptId) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.from('mock_test_attempts').update({
+        status: 'in_progress',
+        tab_switches: 0
+      }).eq('id', attemptId);
+      
+      if (error) throw error;
+      
+      const updatedSubmissions = submissions.map(group => {
+        if (group.student_id === activeStudentGroup.student_id) {
+          return {
+            ...group,
+            attempts: group.attempts.map(att => 
+              att.id === attemptId ? { ...att, status: 'in_progress', tab_switches: 0 } : att
+            )
+          };
+        }
+        return group;
+      });
+      setSubmissions(updatedSubmissions);
+      
+      setActiveStudentGroup({
+        ...activeStudentGroup,
+        attempts: activeStudentGroup.attempts.map(att => 
+          att.id === attemptId ? { ...att, status: 'in_progress', tab_switches: 0 } : att
+        )
+      });
+      
+      alert('Resume access granted successfully. The student can now resume the exam.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to grant resume access');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveExamToDatabase = async (statusToSave) => {
     try {
       const totalModDuration = selectedModules.reduce((acc, m) => acc + (parseInt(m.duration_minutes) || 0), 0);
@@ -1617,9 +1656,14 @@ export default function MockTestsAdmin() {
                         {attempt.status || 'completed'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => handleReviewDetail(attempt)} className="px-4 py-2 bg-brand-primary text-white hover:bg-brand-secondary rounded-xl font-bold transition-colors text-xs flex items-center gap-2 ml-auto shadow-lg shadow-brand-primary/20">
-                        <CheckCircle2 className="w-4 h-4" /> Review Answers
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      {attempt.status === 'disqualified' && (
+                        <button onClick={() => handleGrantResume(attempt.id)} className="px-4 py-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/20 rounded-xl font-bold transition-colors text-xs flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" /> Grant Resume
+                        </button>
+                      )}
+                      <button onClick={() => handleReviewDetail(attempt)} className="px-4 py-2 bg-brand-primary text-white hover:bg-brand-secondary rounded-xl font-bold transition-colors text-xs flex items-center gap-2 shadow-lg shadow-brand-primary/20">
+                        <Eye className="w-4 h-4" /> Review Answers
                       </button>
                     </td>
                   </tr>

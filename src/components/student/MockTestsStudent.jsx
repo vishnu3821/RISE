@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -52,6 +52,18 @@ export default function MockTestsStudent({ searchQuery = '' }) {
   const [sectionTimeRemaining, setSectionTimeRemaining] = useState(null); // Section timer
   const [tabSwitches, setTabSwitches] = useState(0);
 
+  const timeRemainingRef = useRef(timeRemaining);
+  const sectionTimeRemainingRef = useRef(sectionTimeRemaining);
+  const attemptIdRef = useRef(currentAttemptId);
+  const activeModulesRef = useRef(activeModules);
+  const currentModuleIndexRef = useRef(currentModuleIndex);
+
+  useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
+  useEffect(() => { sectionTimeRemainingRef.current = sectionTimeRemaining; }, [sectionTimeRemaining]);
+  useEffect(() => { attemptIdRef.current = currentAttemptId; }, [currentAttemptId]);
+  useEffect(() => { activeModulesRef.current = activeModules; }, [activeModules]);
+  useEffect(() => { currentModuleIndexRef.current = currentModuleIndex; }, [currentModuleIndex]);
+
   // Modals
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submissionConfirmText, setSubmissionConfirmText] = useState('');
@@ -98,6 +110,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
 
   useEffect(() => {
     let interval;
+    let saveInterval;
     if (viewState === 'exam' || viewState === 'review') {
       interval = setInterval(() => {
         // Overall timer
@@ -120,8 +133,35 @@ export default function MockTestsStudent({ searchQuery = '' }) {
           return prev - 1;
         });
       }, 1000);
+
+      // Auto-save timer to DB
+      saveInterval = setInterval(async () => {
+        const attemptId = attemptIdRef.current;
+        if (!attemptId) return;
+        
+        try {
+          const { data } = await supabase.from('mock_test_attempts').select('module_state').eq('id', attemptId).maybeSingle();
+          if (data) {
+             const state = data.module_state || {};
+             const currentMod = activeModulesRef.current[currentModuleIndexRef.current];
+             if (currentMod) {
+               state[currentMod.module_name] = { 
+                 ...(state[currentMod.module_name] || {}), 
+                 saved_section_time: sectionTimeRemainingRef.current 
+               };
+             }
+             state.saved_overall_time = timeRemainingRef.current;
+             await supabase.from('mock_test_attempts').update({ module_state: state }).eq('id', attemptId);
+          }
+        } catch(e) {
+          console.error("Auto-save timer error", e);
+        }
+      }, 10000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (saveInterval) clearInterval(saveInterval);
+    };
   }, [viewState]);
 
   const handleDisqualify = async () => {
@@ -391,6 +431,66 @@ export default function MockTestsStudent({ searchQuery = '' }) {
     } catch (err) {
       console.error('Error starting exam:', err);
       alert('Failed to start exam.');
+    }
+  };
+
+  const handleResumeCountdown = async () => {
+    try {
+      const inProgressAttempt = (allStudentAttempts[activeExam.id] || []).find(a => a.status === 'in_progress');
+      if (!inProgressAttempt) return;
+
+      setCurrentAttemptId(inProgressAttempt.id);
+      
+      const reconstructedAnswers = {};
+      if (inProgressAttempt.mock_test_answers) {
+        inProgressAttempt.mock_test_answers.forEach(a => {
+          reconstructedAnswers[a.question_id] = { selected_option: a.selected_option };
+        });
+      }
+      if (inProgressAttempt.mock_test_coding_answers) {
+        inProgressAttempt.mock_test_coding_answers.forEach(a => {
+          reconstructedAnswers[a.question_id] = { code_response: a.code, code_language: a.language };
+        });
+      }
+      setAnswers(reconstructedAnswers);
+
+      const state = inProgressAttempt.module_state || {};
+      
+      let targetModIdx = 0;
+      for (let i = 0; i < activeModules.length; i++) {
+        if (state[activeModules[i].module_name]?.status !== 'completed') {
+          targetModIdx = i;
+          break;
+        }
+      }
+      setCurrentModuleIndex(targetModIdx);
+      setCurrentQuestionIndex(0);
+
+      const targetMod = activeModules[targetModIdx];
+      const savedModState = state[targetMod?.module_name] || {};
+      
+      if (savedModState.saved_section_time !== undefined && savedModState.saved_section_time !== null) {
+        setSectionTimeRemaining(savedModState.saved_section_time);
+      } else {
+        setSectionTimeRemaining((targetMod?.duration_minutes || 30) * 60);
+      }
+
+      if (state.saved_overall_time !== undefined && state.saved_overall_time !== null) {
+        setTimeRemaining(state.saved_overall_time);
+      } else if (activeExam.duration_minutes) {
+        setTimeRemaining(activeExam.duration_minutes * 60);
+      } else {
+        setTimeRemaining(null);
+      }
+
+      navigate(`/dashboard/mock-tests/${encodeURIComponent(activeExam.title)}/active`, { replace: true });
+      
+      setCountdown(10);
+      setViewState('countdown');
+      setTabSwitches(0);
+    } catch(err) {
+      console.error('Error resuming exam:', err);
+      alert('Failed to resume exam.');
     }
   };
 
@@ -1738,22 +1838,40 @@ Output only the JSON.`;
                     </div>
                   </div>
 
-                  {activeExam?.max_attempts && (allStudentAttempts[activeExam?.id]?.length || 0) >= activeExam.max_attempts ? (
-                    <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex flex-col items-center text-center">
-                      <MonitorX className="w-8 h-8 text-red-500 mb-2" />
-                      <h4 className="text-red-400 font-bold mb-1">
-                        {activeExam.max_attempts === 1 ? 'This exam can only be attempted once.' : 'Attempt Limit Reached'}
-                      </h4>
-                      {activeExam.max_attempts > 1 && (
-                        <p className="text-red-400/80 text-sm">You have already used all {activeExam.max_attempts} attempts allowed for this examination. Further attempts are not permitted.</p>
-                      )}
-                      <div className="mt-4 px-4 py-1.5 bg-red-500/20 text-red-500 font-bold text-xs uppercase tracking-widest rounded">Status: Completed</div>
-                    </div>
-                  ) : (
-                    <button onClick={handleStartCountdown} className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-brand-primary text-white rounded-2xl font-black text-xl hover:bg-brand-secondary transition-all hover:scale-[1.02] shadow-[0_10px_30px_rgba(var(--brand-primary-rgb),0.3)]">
-                      <PlayCircle className="w-7 h-7" /> {allStudentAttempts[activeExam?.id]?.length > 0 ? 'Re-Attempt Exam' : 'Start Exam'}
-                    </button>
-                  )}
+                  {(() => {
+                    const inProgressAttempt = (allStudentAttempts[activeExam?.id] || []).find(a => a.status === 'in_progress');
+                    const completedCount = (allStudentAttempts[activeExam?.id] || []).filter(a => a.status !== 'in_progress').length;
+                    const isLimitReached = activeExam?.max_attempts && (!inProgressAttempt) && (completedCount >= activeExam.max_attempts);
+
+                    if (isLimitReached) {
+                      return (
+                        <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-2xl flex flex-col items-center text-center">
+                          <MonitorX className="w-8 h-8 text-red-500 mb-2" />
+                          <h4 className="text-red-400 font-bold mb-1">
+                            {activeExam.max_attempts === 1 ? 'This exam can only be attempted once.' : 'Attempt Limit Reached'}
+                          </h4>
+                          {activeExam.max_attempts > 1 && (
+                            <p className="text-red-400/80 text-sm">You have already used all {activeExam.max_attempts} attempts allowed for this examination. Further attempts are not permitted.</p>
+                          )}
+                          <div className="mt-4 px-4 py-1.5 bg-red-500/20 text-red-500 font-bold text-xs uppercase tracking-widest rounded">Status: Completed</div>
+                        </div>
+                      );
+                    }
+
+                    if (inProgressAttempt) {
+                      return (
+                        <button onClick={handleResumeCountdown} className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-brand-secondary text-white rounded-2xl font-black text-xl hover:bg-opacity-90 transition-all hover:scale-[1.02] shadow-[0_10px_30px_rgba(var(--brand-secondary-rgb),0.3)]">
+                          <PlayCircle className="w-7 h-7" /> Resume Exam
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button onClick={handleStartCountdown} className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-brand-primary text-white rounded-2xl font-black text-xl hover:bg-brand-secondary transition-all hover:scale-[1.02] shadow-[0_10px_30px_rgba(var(--brand-primary-rgb),0.3)]">
+                        <PlayCircle className="w-7 h-7" /> {allStudentAttempts[activeExam?.id]?.length > 0 ? 'Start New Attempt' : 'Start Exam'}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
