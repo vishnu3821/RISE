@@ -52,12 +52,16 @@ export default function MockTestsStudent({ searchQuery = '' }) {
   const [sectionTimeRemaining, setSectionTimeRemaining] = useState(null); // Section timer
   const [tabSwitches, setTabSwitches] = useState(0);
   const [violationReason, setViolationReason] = useState('');
-
+  const [webcamEnabled, setWebcamEnabled] = useState(false);
+  
   const timeRemainingRef = useRef(timeRemaining);
   const sectionTimeRemainingRef = useRef(sectionTimeRemaining);
   const attemptIdRef = useRef(currentAttemptId);
   const activeModulesRef = useRef(activeModules);
   const currentModuleIndexRef = useRef(currentModuleIndex);
+  
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => { timeRemainingRef.current = timeRemaining; }, [timeRemaining]);
   useEffect(() => { sectionTimeRemainingRef.current = sectionTimeRemaining; }, [sectionTimeRemaining]);
@@ -164,6 +168,61 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       if (saveInterval) clearInterval(saveInterval);
     };
   }, [viewState]);
+
+  useEffect(() => {
+    return () => {
+      if (window.stream) {
+        window.stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const handleRequestCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      window.stream = stream;
+      setWebcamEnabled(true);
+      setCountdown(10);
+      setViewState('countdown');
+    } catch (err) {
+      alert("Camera access is required for this exam. Please allow camera permissions in your browser and try again.");
+    }
+  };
+
+  // Webcam Snapshot Logic
+  useEffect(() => {
+    let proctorInterval;
+    if ((viewState === 'exam' || viewState === 'review') && activeExam?.require_webcam && webcamEnabled) {
+      proctorInterval = setInterval(async () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (video && canvas && currentAttemptId) {
+          const context = canvas.getContext('2d');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Compress heavily: 50% quality JPEG
+          const snapshotBase64 = canvas.toDataURL('image/jpeg', 0.5);
+          
+          try {
+            await supabase.from('mock_test_proctoring').insert([{
+              attempt_id: currentAttemptId,
+              snapshot_base64: snapshotBase64
+            }]);
+          } catch (e) {
+            console.error('Failed to upload snapshot:', e);
+          }
+        }
+      }, 3 * 60 * 1000); // Every 3 minutes
+    }
+    return () => clearInterval(proctorInterval);
+  }, [viewState, activeExam, webcamEnabled, currentAttemptId]);
+
+  useEffect(() => {
+    if (webcamEnabled && videoRef.current && window.stream) {
+      videoRef.current.srcObject = window.stream;
+    }
+  }, [webcamEnabled, viewState]);
 
   const handleDisqualify = async (reason = 'Multiple security violations') => {
     setShowViolationModal(false);
@@ -481,8 +540,12 @@ export default function MockTestsStudent({ searchQuery = '' }) {
         setTimeRemaining(null);
       }
       
-      setCountdown(10);
-      setViewState('countdown');
+      if (activeExam.require_webcam) {
+        setViewState('hardware_check');
+      } else {
+        setCountdown(10);
+        setViewState('countdown');
+      }
       setTabSwitches(0);
     } catch (err) {
       console.error('Error starting exam:', err);
@@ -541,8 +604,12 @@ export default function MockTestsStudent({ searchQuery = '' }) {
 
       navigate(`/dashboard/mock-tests/${encodeURIComponent(activeExam.title)}/active`, { replace: true });
       
-      setCountdown(10);
-      setViewState('countdown');
+      if (activeExam.require_webcam) {
+        setViewState('hardware_check');
+      } else {
+        setCountdown(10);
+        setViewState('countdown');
+      }
       setTabSwitches(0);
     } catch(err) {
       console.error('Error resuming exam:', err);
@@ -1006,6 +1073,47 @@ Output only the JSON.`;
             </div>
           )}
         </AnimatePresence>
+        <AnimatePresence>
+          <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+          <canvas ref={canvasRef} className="hidden" />
+        </AnimatePresence>
+
+        {/* 0. HARDWARE CHECK VIEW */}
+        {viewState === 'hardware_check' && (
+          <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden p-6">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="glass-card w-full max-w-lg bg-theme-card/80 border border-theme-border rounded-3xl p-10 relative z-10 shadow-2xl backdrop-blur-xl text-center"
+            >
+              <div className="w-20 h-20 bg-brand-primary/20 text-brand-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                <Camera className="w-10 h-10" />
+              </div>
+              <h2 className="text-3xl font-black text-theme-text tracking-tight mb-4">Hardware Check</h2>
+              <p className="text-theme-text-muted mb-8 leading-relaxed">
+                This exam requires webcam proctoring. You must allow camera access to proceed. Your camera will be active during the entire exam.
+              </p>
+              
+              <button 
+                onClick={handleRequestCamera}
+                className="w-full py-4 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl font-bold transition-colors shadow-lg text-lg uppercase tracking-wider"
+              >
+                Allow Camera Access
+              </button>
+              <button 
+                onClick={() => {
+                  setViewState('list');
+                  navigate(`/dashboard/mock-tests/${encodeURIComponent(activeExam.title)}`, { replace: true });
+                }}
+                className="w-full py-4 mt-4 bg-transparent border border-theme-border text-theme-text-muted hover:text-theme-text rounded-xl font-bold transition-colors uppercase tracking-wider"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </div>
+        )}
 
         {/* 1. SYSTEM INITIALIZATION VIEW */}
         {viewState === 'countdown' && (
@@ -1124,6 +1232,12 @@ Output only the JSON.`;
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                {webcamEnabled && (
+                  <div className="hidden sm:flex items-center gap-2 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    <span className="text-red-500 text-[10px] uppercase font-bold tracking-wider">Recording</span>
+                  </div>
+                )}
                 <button 
                   onClick={() => {
                     if(window.confirm('Are you sure you want to cancel the exam? All progress will be lost.')) {

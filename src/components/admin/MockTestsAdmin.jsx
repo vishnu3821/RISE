@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FileText, Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, 
   ArrowRight, ArrowLeft, Save, Eye, Layers, BookOpen, User, Calendar, AlertTriangle, Star,
-  UploadCloud, Database, ListPlus, Calculator
+  UploadCloud, Database, ListPlus, Calculator, Camera
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
@@ -46,9 +46,11 @@ export default function MockTestsAdmin() {
   const [reviewQuestions, setReviewQuestions] = useState([]);
   const [reviewAnswers, setReviewAnswers] = useState({});
   const [codingEvaluations, setCodingEvaluations] = useState({});
+  const [proctoringLogs, setProctoringLogs] = useState([]);
+  const [reviewTab, setReviewTab] = useState('answers');
 
   // Wizard States
-  const [examForm, setExamForm] = useState({ title: '', description: '', instructions: '', duration_minutes: '', allow_calculator: false, attempt_type: 'unlimited', max_attempts: '' });
+  const [examForm, setExamForm] = useState({ title: '', description: '', instructions: '', duration_minutes: '', allow_calculator: false, require_webcam: false, attempt_type: 'unlimited', max_attempts: '' });
   const [selectedModules, setSelectedModules] = useState([]);
   const [draftQuestions, setDraftQuestions] = useState([]);
   
@@ -304,9 +306,15 @@ export default function MockTestsAdmin() {
         evals[ca.question_id] = ca.score || 0;
       });
       
+      // 3. Fetch Proctoring
+      const { data: procData, error: procError } = await supabase.from('mock_test_proctoring').select('*').eq('attempt_id', attempt.id).order('captured_at', { ascending: true });
+      // If error occurs here, it might just mean the table doesn't exist yet, we can gracefully ignore it for now or log it
+      if (procError && procError.code !== '42P01') console.error(procError);
+
       setReviewQuestions([...(qData || []), ...mappedCodingQs]);
       setReviewAnswers(answerMap);
       setCodingEvaluations(evals);
+      setProctoringLogs(procData || []);
       setViewState('submission_detail');
     } catch (err) {
       console.error('Error fetching review details:', err);
@@ -372,7 +380,7 @@ export default function MockTestsAdmin() {
 
   // --- WIZARD HANDLERS ---
   const startNewExam = () => {
-    setExamForm({ title: '', description: '', duration_minutes: '', allow_calculator: false });
+    setExamForm({ title: '', description: '', duration_minutes: '', allow_calculator: false, require_webcam: false });
     setSelectedModules([]);
     setDraftQuestions([]);
     setCurrentModuleIndex(0);
@@ -779,6 +787,7 @@ export default function MockTestsAdmin() {
         description: examForm.instructions ? `${examForm.description}::INSTRUCTIONS::${examForm.instructions}` : examForm.description,
         duration_minutes: examForm.duration_minutes ? parseInt(examForm.duration_minutes, 10) : null,
         allow_calculator: examForm.allow_calculator,
+        require_webcam: examForm.require_webcam,
         max_attempts: examForm.attempt_type === 'limited' ? parseInt(examForm.max_attempts, 10) || null : null,
         status: statusToSave
       }]).select();
@@ -1105,6 +1114,23 @@ export default function MockTestsAdmin() {
                       className={`relative w-12 h-6 rounded-full transition-colors ${examForm.allow_calculator ? 'bg-brand-primary' : 'bg-theme-border'}`}
                     >
                       <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${examForm.allow_calculator ? 'translate-x-6' : ''}`}></div>
+                    </button>
+                  </div>
+                </div>
+                <div className="pt-6 border-t border-theme-border">
+                  <h3 className="text-sm font-bold text-theme-text uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-brand-secondary" /> Security Settings
+                  </h3>
+                  <div className="flex items-center justify-between p-4 bg-theme-card border border-theme-border rounded-xl">
+                    <div>
+                      <h4 className="text-theme-text font-bold text-sm">Require Webcam Proctoring</h4>
+                      <p className="text-xs text-theme-text-muted mt-1">If enabled, students must allow webcam access. The system will capture snapshots periodically during the exam.</p>
+                    </div>
+                    <button
+                      onClick={() => setExamForm({...examForm, require_webcam: !examForm.require_webcam})}
+                      className={`relative w-12 h-6 rounded-full transition-colors ${examForm.require_webcam ? 'bg-brand-primary' : 'bg-theme-border'}`}
+                    >
+                      <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${examForm.require_webcam ? 'translate-x-6' : ''}`}></div>
                     </button>
                   </div>
                 </div>
@@ -1697,8 +1723,25 @@ export default function MockTestsAdmin() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            {reviewQuestions.map((q, i) => {
+          {/* TABS */}
+          <div className="flex border-b border-theme-border mb-6">
+            <button
+              onClick={() => setReviewTab('answers')}
+              className={`px-6 py-3 font-bold text-sm tracking-wider uppercase transition-colors border-b-2 ${reviewTab === 'answers' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-theme-text-muted hover:text-theme-text'}`}
+            >
+              Exam Answers
+            </button>
+            <button
+              onClick={() => setReviewTab('proctoring')}
+              className={`px-6 py-3 font-bold text-sm tracking-wider uppercase transition-colors border-b-2 ${reviewTab === 'proctoring' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-theme-text-muted hover:text-theme-text'}`}
+            >
+              Proctoring Logs <span className="ml-2 bg-theme-border text-theme-text-muted px-2 py-0.5 rounded-full text-xs">{proctoringLogs.length}</span>
+            </button>
+          </div>
+
+          {reviewTab === 'answers' && (
+            <div className="space-y-6">
+              {reviewQuestions.map((q, i) => {
               const answer = reviewAnswers[q.id];
               const isMCQ = q.question_type === 'MCQ';
               const isCorrect = isMCQ && answer?.selected_option === q.correct_answer;
@@ -1848,6 +1891,32 @@ export default function MockTestsAdmin() {
               );
             })}
           </div>
+
+          {reviewTab === 'proctoring' && (
+            <div className="space-y-6">
+              {proctoringLogs.length === 0 ? (
+                <div className="text-center py-20 bg-theme-card border border-theme-border rounded-[32px]">
+                  <Camera className="w-16 h-16 text-theme-text-muted/30 mx-auto mb-4" />
+                  <h3 className="text-2xl font-black text-theme-text mb-2 tracking-tight">No Proctoring Logs</h3>
+                  <p className="text-theme-text-muted">Webcam proctoring was either disabled for this exam, or the student bypassed it.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {proctoringLogs.map((log, i) => (
+                    <div key={log.id} className="bg-theme-card border border-theme-border rounded-3xl overflow-hidden shadow-lg">
+                      <div className="bg-brand-bg/50 px-4 py-3 border-b border-theme-border flex items-center justify-between">
+                        <span className="text-theme-text font-bold text-sm">Snapshot {i + 1}</span>
+                        <span className="text-theme-text-muted text-xs">{new Date(log.captured_at).toLocaleTimeString()}</span>
+                      </div>
+                      <div className="aspect-video bg-black relative">
+                        <img src={log.snapshot_base64} alt={`Proctoring Snapshot ${i + 1}`} className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
       )}
 
