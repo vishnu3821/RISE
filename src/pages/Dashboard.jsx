@@ -68,7 +68,7 @@ export default function Dashboard() {
       ] = await Promise.all([
         supabase.from('mock_test_attempts').select('test_id, created_at, mock_tests(title)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'submitted').order('created_at', { ascending: false }).limit(5),
         supabase.from('student_progress').select('created_at, questions(title)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(5),
-        supabase.from('learning_hub_progress').select('created_at, learning_hub_topics(title)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(5),
+        supabase.from('learning_hub_progress').select('created_at, learning_hub_questions(learning_hub_topics(title))', { count: 'exact' }).eq('student_id', user.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(5),
         supabase.from('ai_interview_attempts').select('created_at, ai_interview_modules(name)', { count: 'exact' }).eq('student_id', user.id).eq('status', 'completed').order('created_at', { ascending: false }).limit(5)
       ]);
 
@@ -234,7 +234,7 @@ export default function Dashboard() {
         activities.push(...learnData.map(l => ({
           color: 'bg-brand-primary',
           title: 'Finished Topic',
-          desc: l.learning_hub_topics?.title || 'Learning Hub Topic',
+          desc: l.learning_hub_questions?.learning_hub_topics?.title || 'Learning Hub Topic',
           time: timeAgo(l.created_at),
           date: new Date(l.created_at)
         })));
