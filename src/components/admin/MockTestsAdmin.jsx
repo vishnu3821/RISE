@@ -60,6 +60,10 @@ export default function MockTestsAdmin() {
   });
   const [saveToBank, setSaveToBank] = useState(false);
 
+  const [editAttemptsExam, setEditAttemptsExam] = useState(null);
+  const [newMaxAttempts, setNewMaxAttempts] = useState('');
+  const [newAttemptType, setNewAttemptType] = useState('unlimited');
+
   // Bulk Question States
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
@@ -702,6 +706,23 @@ export default function MockTestsAdmin() {
 
   // --- END BULK HELPERS ---
 
+  const handleSaveAttempts = async () => {
+    if (!editAttemptsExam) return;
+    try {
+      const max_attempts = newAttemptType === 'limited' ? parseInt(newMaxAttempts, 10) || null : null;
+      setLoading(true);
+      const { error } = await supabase.from('mock_tests').update({ max_attempts }).eq('id', editAttemptsExam.id);
+      if (error) throw error;
+      await fetchExams();
+      setEditAttemptsExam(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update attempts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveExamToDatabase = async (statusToSave) => {
     try {
       const totalModDuration = selectedModules.reduce((acc, m) => acc + (parseInt(m.duration_minutes) || 0), 0);
@@ -860,6 +881,13 @@ export default function MockTestsAdmin() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
+                    <button onClick={() => {
+                      setEditAttemptsExam(exam);
+                      setNewAttemptType(exam.max_attempts ? 'limited' : 'unlimited');
+                      setNewMaxAttempts(exam.max_attempts || '');
+                    }} className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border bg-brand-primary/10 text-brand-primary border-brand-primary/20 hover:bg-brand-primary/20">
+                      Policy
+                    </button>
                     <button onClick={() => handleViewSubmissions(exam)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border bg-brand-cyan/20 text-brand-cyan border-brand-cyan/30 hover:bg-brand-cyan/30">
                       Results
                     </button>
@@ -1954,6 +1982,43 @@ export default function MockTestsAdmin() {
                 >
                   <CheckCircle2 className="w-4 h-4" /> Import Selected
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Attempts Modal */}
+      <AnimatePresence>
+        {editAttemptsExam && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setEditAttemptsExam(null)}></div>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-theme-card border border-theme-border p-8 rounded-3xl shadow-2xl relative z-10 max-w-md w-full">
+              <h3 className="text-2xl font-bold text-theme-text mb-2">Edit Attempt Policy</h3>
+              <p className="text-theme-text-muted mb-6 text-sm">Update the attempt policy for <span className="font-bold text-brand-primary">{editAttemptsExam.title}</span></p>
+              
+              <div className="space-y-4 mb-8">
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="new_attempt_type" value="unlimited" checked={newAttemptType === 'unlimited'} onChange={() => setNewAttemptType('unlimited')} className="text-brand-primary focus:ring-brand-primary" />
+                    <span className="text-theme-text font-bold text-sm">Unlimited Attempts</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="new_attempt_type" value="limited" checked={newAttemptType === 'limited'} onChange={() => setNewAttemptType('limited')} className="text-brand-primary focus:ring-brand-primary" />
+                    <span className="text-theme-text font-bold text-sm">Limited Attempts</span>
+                  </label>
+                </div>
+                {newAttemptType === 'limited' && (
+                  <div className="mt-4">
+                    <label className="block text-xs font-bold text-theme-text-muted mb-2 uppercase tracking-wider">Maximum Attempts</label>
+                    <input type="number" min="1" value={newMaxAttempts} onChange={e => setNewMaxAttempts(e.target.value)} className="w-full bg-brand-bg border border-theme-border rounded-xl py-3 px-4 text-theme-text focus:border-brand-primary outline-none" placeholder="e.g. 1, 2, 3" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setEditAttemptsExam(null)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-theme-text-muted hover:text-theme-text transition-colors">Cancel</button>
+                <button onClick={handleSaveAttempts} className="px-5 py-2.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-secondary transition-colors">Save Changes</button>
               </div>
             </motion.div>
           </div>

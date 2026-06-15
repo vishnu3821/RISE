@@ -1068,17 +1068,17 @@ Output only the JSON.`;
                       <div className="flex items-center gap-2 bg-theme-card-alt/50 px-3 py-2.5 rounded-xl border border-theme-border">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> 
                         <span className="flex-1">Answered</span>
-                        <span className="text-theme-text text-xs">{Object.keys(answers).length}</span>
+                        <span className="text-theme-text text-xs">{currentModuleQs.filter(q => answers[q.id]?.selected_option || answers[q.id]?.code_response).length}</span>
                       </div>
                       <div className="flex items-center gap-2 bg-theme-card-alt/50 px-3 py-2.5 rounded-xl border border-theme-border">
                         <div className="w-2.5 h-2.5 rounded-full bg-brand-secondary"></div> 
                         <span className="flex-1">Review</span>
-                        <span className="text-theme-text text-xs">{markedForReview.size}</span>
+                        <span className="text-theme-text text-xs">{currentModuleQs.filter(q => markedForReview.has(q.id)).length}</span>
                       </div>
                       <div className="flex items-center gap-2 bg-theme-card-alt/50 px-3 py-2.5 rounded-xl border border-theme-border col-span-2">
                         <div className="w-2.5 h-2.5 rounded-full bg-white/20 border border-theme-border"></div> 
                         <span className="flex-1">Unanswered</span>
-                        <span className="text-theme-text text-xs">{activeQuestions.length - Object.keys(answers).length}</span>
+                        <span className="text-theme-text text-xs">{currentModuleQs.length - currentModuleQs.filter(q => answers[q.id]?.selected_option || answers[q.id]?.code_response).length}</span>
                       </div>
                     </div>
                   </div>
