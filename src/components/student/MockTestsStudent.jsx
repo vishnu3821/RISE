@@ -489,10 +489,7 @@ export default function MockTestsStudent({ searchQuery = '' }) {
       const { data: codingData, error: codingError } = await supabase.from('mock_test_coding_questions').select('*').eq('test_id', exam.id);
       if (codingError) throw codingError;
 
-      let allQuestions = (mcqData || []).map(q => ({
-        ...q,
-        module_name: mods.find(m => m.id === q.module_id)?.module_name || 'Module'
-      }));
+      let allQuestions = [...(mcqData || [])];
 
       if (codingData && codingData.length > 0) {
         // Fetch test cases for these coding questions
