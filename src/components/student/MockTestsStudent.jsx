@@ -1689,7 +1689,7 @@ Output only the JSON.`;
                     <div className="bg-theme-card-alt/50 p-5 rounded-2xl flex justify-between items-center border border-theme-border">
                       <span className="text-theme-text-muted font-bold">Estimated Duration</span>
                       <span className="text-theme-text font-black text-xl">
-                        {activeExam?.duration_minutes || 120} Minutes
+                        {activeExam?.duration_minutes || (examModulesMap[activeExam?.id] || []).reduce((sum, m) => sum + (m.duration_minutes || 0), 0) || 0} Minutes
                       </span>
                     </div>
                     <div className="bg-theme-card-alt/50 p-5 rounded-2xl flex justify-between items-center border border-theme-border">
