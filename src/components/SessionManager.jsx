@@ -92,11 +92,23 @@ const SessionManager = () => {
       window.addEventListener(event, handleActivity, { passive: true });
     });
 
+    const handleStorage = (e) => {
+      if (e.key === 'lastActivity' && e.newValue) {
+        lastActivityRef.current = parseInt(e.newValue, 10);
+        if (showWarningRef.current) {
+          showWarningRef.current = false;
+          setShowWarning(false);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
     return () => {
       clearInterval(intervalId);
       events.forEach(event => {
         window.removeEventListener(event, handleActivity);
       });
+      window.removeEventListener('storage', handleStorage);
       if (throttleTimer) clearTimeout(throttleTimer);
     };
   }, [user, performLogout, updateActivity]);
@@ -105,7 +117,7 @@ const SessionManager = () => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
         {/* Backdrop */}
         <motion.div 
           initial={{ opacity: 0 }}
