@@ -41,18 +41,31 @@ export default function LearningHubStudent({ searchQuery = '' }) {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [catRes, topRes, qRes, progRes] = await Promise.all([
+      const [catRes, topRes, progRes] = await Promise.all([
         supabase.from('learning_hub_categories').select('*').eq('is_active', true).order('name'),
         supabase.from('learning_hub_topics').select('*'),
-        supabase.from('learning_hub_questions').select('*'),
         supabase.from('learning_hub_progress').select('*').eq('student_id', user.id)
       ]);
 
       if (catRes.error) throw catRes.error;
       
+      let allQuestions = [];
+      let fetchMore = true;
+      let from = 0;
+      let limit = 1000;
+      while (fetchMore) {
+        const { data, error } = await supabase.from('learning_hub_questions').select('*').range(from, from + limit - 1);
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allQuestions = [...allQuestions, ...data];
+          from += limit;
+        }
+        if (!data || data.length < limit) fetchMore = false;
+      }
+
       setCategories(catRes.data || []);
       setTopics(topRes.data || []);
-      setQuestions(qRes.data || []);
+      setQuestions(allQuestions);
       setProgressData(progRes.data || []);
 
       // Restore session state

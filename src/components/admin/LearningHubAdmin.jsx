@@ -53,19 +53,35 @@ export default function LearningHubAdmin() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [catRes, topRes, qRes] = await Promise.all([
+      const [catRes, topRes] = await Promise.all([
         supabase.from('learning_hub_categories').select('*').order('name'),
-        supabase.from('learning_hub_topics').select('*, learning_hub_categories(name)').order('created_at', { ascending: false }),
-        supabase.from('learning_hub_questions').select('*, learning_hub_topics(name, category_id, learning_hub_categories(name))').order('created_at', { ascending: false })
+        supabase.from('learning_hub_topics').select('*, learning_hub_categories(name)').order('created_at', { ascending: false })
       ]);
 
       if (catRes.error) throw catRes.error;
       if (topRes.error) throw topRes.error;
-      if (qRes.error) throw qRes.error;
+      
+      let allQuestions = [];
+      let fetchMore = true;
+      let from = 0;
+      let limit = 1000;
+      while (fetchMore) {
+        const { data, error } = await supabase.from('learning_hub_questions')
+          .select('*, learning_hub_topics(name, category_id, learning_hub_categories(name))')
+          .order('created_at', { ascending: false })
+          .range(from, from + limit - 1);
+          
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allQuestions = [...allQuestions, ...data];
+          from += limit;
+        }
+        if (!data || data.length < limit) fetchMore = false;
+      }
 
       setCategories(catRes.data || []);
       setTopics(topRes.data || []);
-      setQuestions(qRes.data || []);
+      setQuestions(allQuestions);
     } catch (err) {
       console.error('Error fetching LH data:', err);
     } finally {
