@@ -46,14 +46,11 @@ const SessionManager = () => {
   useEffect(() => {
     if (!user) return;
 
-    const stored = localStorage.getItem('lastActivity');
-    if (stored) {
-      lastActivityRef.current = parseInt(stored, 10);
-    } else {
-      const now = Date.now();
-      lastActivityRef.current = now;
-      localStorage.setItem('lastActivity', now.toString());
-    }
+    // Always reset activity to NOW when the app loads or a new tab is opened
+    // This prevents the user from being instantly logged out if they reopen the site after being away
+    const now = Date.now();
+    lastActivityRef.current = now;
+    localStorage.setItem('lastActivity', now.toString());
 
     const checkSession = () => {
       const elapsed = Date.now() - lastActivityRef.current;
